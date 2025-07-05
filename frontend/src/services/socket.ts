@@ -52,6 +52,12 @@ class SocketService {
       this.socket.removeAllListeners();
     }
   }
+
+  onQuestionReleased(callback: (question: any) => void): void {
+    if (this.socket) {
+      this.socket.on('questionReleased', callback);
+    }
+  }
 }
 
 export const socketService = new SocketService();

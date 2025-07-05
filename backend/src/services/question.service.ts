@@ -35,4 +35,16 @@ export class QuestionService {
       points: isCorrect ? question.points : 0,
     };
   }
+
+  async releaseNextQuestion(): Promise<Question | null> {
+    // Find the next unreleased question
+    const nextQuestion = await this.questionRepository.findOne({
+      where: { isActive: false },
+      order: { createdAt: 'ASC' },
+    });
+    if (!nextQuestion) return null;
+    nextQuestion.isActive = true;
+    await this.questionRepository.save(nextQuestion);
+    return nextQuestion;
+  }
 } 

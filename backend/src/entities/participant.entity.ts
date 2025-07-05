@@ -12,6 +12,9 @@ export class Participant {
   @Column({ type: 'int', default: 0 })
   score: number;
 
+  @Column({ type: 'varchar', length: 255 })
+  password: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

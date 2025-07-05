@@ -14,6 +14,8 @@ const ParticipantPage: React.FC = () => {
   const [lastResult, setLastResult] = useState<SubmitAnswerResponse | null>(null);
   const [name, setName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
+  const [password, setPassword] = useState('');
+  const [notification, setNotification] = useState<string | null>(null);
 
   const currentQuestion = questions[currentQuestionIndex];
 
@@ -22,6 +24,12 @@ const ParticipantPage: React.FC = () => {
     
     // Connect to socket
     socketService.connect();
+    
+    socketService.onAnswerResult(handleAnswerResult);
+    socketService.onQuestionReleased((question) => {
+      setNotification(`New question released: ${question.questionText}`);
+      setTimeout(() => setNotification(null), 4000);
+    });
     
     return () => {
       socketService.disconnect();
@@ -51,9 +59,8 @@ const ParticipantPage: React.FC = () => {
   useEffect(() => {
     if (participant) {
       socketService.joinParticipant(participant.id);
-      socketService.onAnswerResult(handleAnswerResult);
     }
-  }, [participant, handleAnswerResult]);
+  }, [participant]);
 
   const loadQuestions = async () => {
     try {
@@ -66,11 +73,10 @@ const ParticipantPage: React.FC = () => {
 
   const handleJoinGame = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
-
+    if (!name.trim() || !password.trim()) return;
     setIsJoining(true);
     try {
-      const newParticipant = await participantsApi.create({ name: name.trim() });
+      const newParticipant = await participantsApi.create({ name: name.trim(), password: password.trim() });
       setParticipant(newParticipant);
     } catch (error) {
       console.error('Error joining game:', error);
@@ -81,15 +87,14 @@ const ParticipantPage: React.FC = () => {
 
   const handleAnswerSubmit = async () => {
     if (!participant || !currentQuestion || !selectedAnswer || isSubmitting) return;
-
     setIsSubmitting(true);
     try {
       await gameApi.submitAnswer({
         participantId: participant.id,
         questionId: currentQuestion.id,
         selectedAnswer,
+        password: password.trim(),
       });
-      
       // The result will be handled by the WebSocket callback
     } catch (error) {
       console.error('Error submitting answer:', error);
@@ -104,6 +109,7 @@ const ParticipantPage: React.FC = () => {
     setShowResult(false);
     setLastResult(null);
     setName('');
+    setPassword('');
   };
 
   if (!participant) {
@@ -135,16 +141,37 @@ const ParticipantPage: React.FC = () => {
                 maxLength={50}
               />
             </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                Set a password
+              </label>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input-field w-full"
+                placeholder="Password (min 4 chars)"
+                required
+                minLength={4}
+                maxLength={255}
+              />
+            </div>
             
             <button
               type="submit"
-              disabled={isJoining || !name.trim()}
+              disabled={isJoining || !name.trim() || !password.trim()}
               className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isJoining ? 'Joining...' : 'Enter the Kingdom'}
             </button>
           </form>
         </motion.div>
+        {notification && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-chaos-600 text-white px-6 py-3 rounded-lg shadow-lg animate-bounce">
+            {notification}
+          </div>
+        )}
       </div>
     );
   }

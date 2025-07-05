@@ -51,6 +51,11 @@ export const questionsApi = {
     const response = await api.get(`/questions/${id}`);
     return response.data;
   },
+
+  releaseNext: async (): Promise<any> => {
+    const response = await api.post('/questions/release-next');
+    return response.data;
+  },
 };
 
 // Game API

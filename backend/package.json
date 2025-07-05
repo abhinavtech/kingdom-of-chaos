@@ -20,7 +20,12 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
-  "keywords": ["nestjs", "typescript", "game", "websocket"],
+  "keywords": [
+    "nestjs",
+    "typescript",
+    "game",
+    "websocket"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -30,6 +35,8 @@
     "@nestjs/platform-socket.io": "^10.0.0",
     "@nestjs/typeorm": "^10.0.0",
     "@nestjs/websockets": "^10.0.0",
+    "@types/bcrypt": "^5.0.2",
+    "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
     "pg": "^8.11.0",

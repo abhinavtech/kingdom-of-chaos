@@ -56,4 +56,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Update leaderboard for admin
     await this.broadcastLeaderboardUpdate();
   }
+
+  async broadcastQuestionReleased(question: any) {
+    this.server.emit('questionReleased', question);
+  }
 } 

@@ -9,6 +9,7 @@ const AdminPage: React.FC = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [notification, setNotification] = useState<string | null>(null);
 
   useEffect(() => {
     loadInitialData();
@@ -17,6 +18,10 @@ const AdminPage: React.FC = () => {
     socketService.connect();
     socketService.joinAdmin();
     socketService.onLeaderboardUpdate(handleLeaderboardUpdate);
+    socketService.onQuestionReleased((question) => {
+      setNotification(`New question released: ${question.questionText}`);
+      setTimeout(() => setNotification(null), 4000);
+    });
     
     return () => {
       socketService.removeAllListeners();
@@ -52,6 +57,23 @@ const AdminPage: React.FC = () => {
       setLastUpdate(new Date());
     } catch (error) {
       console.error('Error refreshing data:', error);
+    }
+  };
+
+  const handleReleaseNext = async () => {
+    try {
+      const res = await questionsApi.releaseNext();
+      if (res.success) {
+        setNotification('Next question released!');
+        setTimeout(() => setNotification(null), 3000);
+        await loadInitialData();
+      } else {
+        setNotification(res.message || 'No more questions to release');
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (e) {
+      setNotification('Error releasing question');
+      setTimeout(() => setNotification(null), 3000);
     }
   };
 
@@ -167,6 +189,12 @@ const AdminPage: React.FC = () => {
               >
                 🔄 Refresh
               </button>
+              <button
+                onClick={handleReleaseNext}
+                className="btn-chaos"
+              >
+                🚀 Release Next Question
+              </button>
               
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -175,6 +203,12 @@ const AdminPage: React.FC = () => {
             </div>
           </div>
         </motion.div>
+
+        {notification && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-chaos-600 text-white px-6 py-3 rounded-lg shadow-lg animate-bounce">
+            {notification}
+          </div>
+        )}
 
         {/* Leaderboard */}
         <motion.div

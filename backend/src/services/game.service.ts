@@ -24,7 +24,18 @@ export class GameService {
     points: number;
     message: string;
   }> {
-    const { participantId, questionId, selectedAnswer } = submitAnswerDto;
+    const { participantId, questionId, selectedAnswer, password } = submitAnswerDto;
+
+    // Validate participant password
+    const isPasswordValid = await this.participantService.validatePassword(participantId, password);
+    if (!isPasswordValid) {
+      return {
+        success: false,
+        isCorrect: false,
+        points: 0,
+        message: 'Invalid password',
+      };
+    }
 
     // Check if participant has already answered this question
     const existingAnswer = await this.answerRepository.findOne({

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Participant } from '../entities/participant.entity';
 import { CreateParticipantDto } from '../dto/create-participant.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class ParticipantService {
@@ -12,7 +13,11 @@ export class ParticipantService {
   ) {}
 
   async create(createParticipantDto: CreateParticipantDto): Promise<Participant> {
-    const participant = this.participantRepository.create(createParticipantDto);
+    const hashedPassword = await bcrypt.hash(createParticipantDto.password, 10);
+    const participant = this.participantRepository.create({
+      ...createParticipantDto,
+      password: hashedPassword,
+    });
     return this.participantRepository.save(participant);
   }
 
@@ -40,5 +45,11 @@ export class ParticipantService {
       order: { score: 'DESC' },
       take: 10,
     });
+  }
+
+  async validatePassword(id: string, password: string): Promise<boolean> {
+    const participant = await this.participantRepository.findOne({ where: { id } });
+    if (!participant) return false;
+    return bcrypt.compare(password, participant.password);
   }
 } 

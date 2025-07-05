@@ -12,4 +12,8 @@ export class SubmitAnswerDto {
   @IsNotEmpty()
   @IsString()
   selectedAnswer: string;
+
+  @IsNotEmpty()
+  @IsString()
+  password: string;
 } 

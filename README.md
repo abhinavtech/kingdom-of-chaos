@@ -11,6 +11,9 @@ Welcome to the Kingdom of Chaos - a real-time multiplayer quiz game where knowle
 - **Two Game Modes**: 
   - 🎮 **Participant Mode**: Join and answer questions
   - 👑 **Admin Mode**: Monitor live scoreboard and game stats
+- **Admin Controls**: Admin can release each question one by one during the game
+- **Participant Security**: Each participant profile is password-protected
+- **Notifications**: All players receive a notification when a new question is released
 
 ## 🚀 Quick Start
 
@@ -42,6 +45,9 @@ npm run db:up
 ```bash
 cd backend
 npm install
+npm run build
+# Run database migrations (required for password and question release features)
+npx typeorm migration:run -d src/data-source.ts
 npm run start:dev
 ```
 
@@ -65,7 +71,8 @@ kingdom-of-chaos/
 │   │   ├── gateways/       # WebSocket handlers
 │   │   └── config/         # Database configuration
 │   ├── docker-compose.yml  # PostgreSQL setup
-│   └── init-db.sql         # Database schema & sample data
+│   ├── init-db.sql         # Database schema & sample data
+│   └── data-source.ts      # TypeORM DataSource for migrations
 ├── frontend/               # React TypeScript SPA
 │   ├── src/
 │   │   ├── components/     # Reusable UI components
@@ -83,14 +90,17 @@ kingdom-of-chaos/
 ### For Participants
 1. Visit `http://localhost:3000`
 2. Click "🎮 PARTICIPANT"
-3. Enter your name
-4. Answer questions and compete!
+3. Enter your name **and password**
+4. Answer questions as they are released by the admin
+5. Receive notifications when a new question is released
 
 ### For Admins
 1. Visit `http://localhost:3000`
 2. Click "👑 ADMIN"
 3. Monitor live scoreboard
 4. View game statistics
+5. **Release the next question** using the "Release Next Question" button
+6. All participants will be notified instantly
 
 ## 🔧 Technology Stack
 
@@ -98,7 +108,7 @@ kingdom-of-chaos/
 - **NestJS** - Node.js framework
 - **TypeScript** - Type-safe JavaScript
 - **PostgreSQL** - Database
-- **TypeORM** - Database ORM
+- **TypeORM** - Database ORM (with migrations)
 - **Socket.IO** - WebSocket communication
 - **Docker** - Database containerization
 
@@ -113,7 +123,7 @@ kingdom-of-chaos/
 ## 🌐 API Endpoints
 
 ### Participants
-- `POST /api/participants` - Create new participant
+- `POST /api/participants` - Create new participant (**requires name and password**)
 - `GET /api/participants` - Get all participants
 - `GET /api/participants/leaderboard` - Get leaderboard
 - `GET /api/participants/:id` - Get participant by ID
@@ -121,9 +131,10 @@ kingdom-of-chaos/
 ### Questions
 - `GET /api/questions` - Get all active questions
 - `GET /api/questions/:id` - Get question by ID
+- `POST /api/questions/release-next` - **Admin: Release the next question**
 
 ### Game
-- `POST /api/game/submit-answer` - Submit an answer
+- `POST /api/game/submit-answer` - Submit an answer (**requires participant password**)
 - `GET /api/game/participant/:id/answers` - Get participant's answers
 
 ### WebSocket Events
@@ -131,6 +142,7 @@ kingdom-of-chaos/
 - `joinParticipant` - Join participant room
 - `leaderboardUpdate` - Receive leaderboard updates
 - `answerResult` - Receive answer feedback
+- `questionReleased` - **Receive notification when a new question is released**
 
 ## 🎨 UI Features
 
@@ -139,6 +151,9 @@ kingdom-of-chaos/
 - **Smooth Animations**: Framer Motion powered transitions
 - **Real-time Updates**: Live scoreboard without page refresh
 - **Game Font**: Custom Orbitron font for gaming aesthetic
+- **Admin Controls**: Release questions one by one
+- **Participant Security**: Password-protected profiles
+- **Notifications**: Pop-up notifications for new questions
 
 ## 🔧 Development
 
@@ -149,6 +164,9 @@ npm run start:dev  # Development server with hot reload
 npm run db:up      # Start database
 npm run db:down    # Stop database
 npm run db:logs    # View database logs
+# Run migrations after entity changes
+npx typeorm migration:generate -d src/data-source.ts src/migrations/YourMigrationName
+npx typeorm migration:run -d src/data-source.ts
 ```
 
 ### Frontend Development
@@ -161,25 +179,26 @@ npm run build      # Production build
 ## 🐳 Database
 
 The application uses PostgreSQL with the following schema:
-- **participants**: Player information and scores
-- **questions**: Quiz questions with options and correct answers
+- **participants**: Player information, scores, and passwords
+- **questions**: Quiz questions with options, correct answers, and release status
 - **participant_answers**: Tracking of submitted answers
 
 Sample questions are automatically loaded on database initialization.
 
 ## 🎮 Game Flow
 
-1. **Participant joins** → Creates account → Enters game
-2. **Questions display** → Participant selects answer → Submits
-3. **Real-time scoring** → Updates participant score → Broadcasts to admin
-4. **Live leaderboard** → Admin sees updates instantly → Rankings update
-5. **Game completion** → Final scores displayed → Option to play again
+1. **Participant joins** → Creates account with name and password → Enters game
+2. **Admin releases a question** → All participants receive a notification
+3. **Participants answer** → Submit answer with password
+4. **Real-time scoring** → Updates participant score → Broadcasts to admin
+5. **Live leaderboard** → Admin sees updates instantly → Rankings update
+6. **Game completion** → Final scores displayed → Option to play again
 
 ## 📱 Screenshots
 
 - **Home Page**: Choose between Participant and Admin modes
-- **Participant View**: Answer questions with real-time feedback
-- **Admin Dashboard**: Live leaderboard with statistics and question overview
+- **Participant View**: Answer questions with real-time feedback and notifications
+- **Admin Dashboard**: Live leaderboard with statistics, question release, and notifications
 
 ## 🤝 Contributing
 

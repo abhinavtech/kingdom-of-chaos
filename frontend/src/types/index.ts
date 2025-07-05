@@ -31,6 +31,7 @@ export interface SubmitAnswerRequest {
   participantId: string;
   questionId: string;
   selectedAnswer: string;
+  password: string;
 }
 
 export interface SubmitAnswerResponse {
@@ -42,6 +43,7 @@ export interface SubmitAnswerResponse {
 
 export interface CreateParticipantRequest {
   name: string;
+  password: string;
 }
 
 export interface GameState {
