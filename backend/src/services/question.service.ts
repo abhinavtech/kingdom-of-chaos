@@ -24,8 +24,8 @@ export class QuestionService {
   }
 
   async ensureFirstQuestionActive(): Promise<void> {
+    // Find the first question by creation date
     const firstQuestion = await this.questionRepository.findOne({
-      where: {},
       order: { createdAt: 'ASC' },
     });
     

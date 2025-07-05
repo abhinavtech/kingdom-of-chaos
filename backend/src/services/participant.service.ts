@@ -75,7 +75,6 @@ export class ParticipantService {
   async getLeaderboard(): Promise<Participant[]> {
     return this.participantRepository.find({
       order: { score: 'DESC' },
-      take: 10,
     });
   }
 

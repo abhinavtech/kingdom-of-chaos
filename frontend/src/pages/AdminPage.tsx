@@ -391,43 +391,50 @@ const AdminPage: React.FC = () => {
               <p className="text-gray-500">Warriors are gathering...</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              <AnimatePresence>
-                {participants.map((participant, index) => (
-                  <motion.div
-                    key={participant.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ delay: index * 0.1 }}
-                    className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all duration-300 ${getRankColor(index)}`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="text-2xl font-bold min-w-[3rem] text-center">
-                        {getRankIcon(index)}
+            <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 pr-2">
+              <div className="space-y-3">
+                <AnimatePresence>
+                  {participants.map((participant, index) => (
+                    <motion.div
+                      key={participant.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ delay: index * 0.1 }}
+                      className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all duration-300 ${getRankColor(index)}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="text-2xl font-bold min-w-[3rem] text-center">
+                          {getRankIcon(index)}
+                        </div>
+                        
+                        <div>
+                          <div className="font-bold text-lg text-white">
+                            {participant.name}
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            Questions answered: {participant.questionsAnswered || 0}
+                          </div>
+                        </div>
                       </div>
-                      
-                      <div>
-                        <div className="font-bold text-lg text-white">
-                          {participant.name}
+
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-white">
+                          {participant.score}
                         </div>
                         <div className="text-sm text-gray-400">
-                          Questions answered: {participant.questionsAnswered || 0}
+                          points
                         </div>
                       </div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-white">
-                        {participant.score}
-                      </div>
-                      <div className="text-sm text-gray-400">
-                        points
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+              
+              {/* Participant count indicator */}
+              <div className="text-center mt-4 py-2 text-sm text-gray-400 border-t border-gray-700">
+                Showing {participants.length} participants
+              </div>
             </div>
           )}
         </motion.div>
