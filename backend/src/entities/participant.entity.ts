@@ -12,10 +12,10 @@ export class Participant {
   @Column({ type: 'int', default: 0 })
   score: number;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
   @OneToMany(() => ParticipantAnswer, answer => answer.participant)

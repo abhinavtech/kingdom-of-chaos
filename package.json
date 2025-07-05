@@ -1,0 +1,23 @@
+{
+  "name": "kingdom-of-chaos",
+  "version": "1.0.0",
+  "description": "Welcome to the Kingdom of Chaos - a real-time multiplayer quiz game where knowledge reigns supreme and chaos tests your wisdom!",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abhinavtech/kingdom-of-chaos.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/abhinavtech/kingdom-of-chaos/issues"
+  },
+  "homepage": "https://github.com/abhinavtech/kingdom-of-chaos#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.53.2"
+  }
+}

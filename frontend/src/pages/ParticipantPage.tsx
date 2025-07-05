@@ -28,12 +28,32 @@ const ParticipantPage: React.FC = () => {
     };
   }, []);
 
+  const handleAnswerResult = React.useCallback((result: SubmitAnswerResponse) => {
+    setLastResult(result);
+    setShowResult(true);
+    setIsSubmitting(false);
+    
+    // Update participant score if we have the updated data
+    if (participant && result.success && result.isCorrect) {
+      setParticipant(prev => prev ? { ...prev, score: prev.score + result.points } : null);
+    }
+
+    // Auto-advance to next question after 3 seconds
+    setTimeout(() => {
+      setShowResult(false);
+      setSelectedAnswer('');
+      if (currentQuestionIndex < questions.length - 1) {
+        setCurrentQuestionIndex(prev => prev + 1);
+      }
+    }, 3000);
+  }, [participant, currentQuestionIndex, questions.length]);
+
   useEffect(() => {
     if (participant) {
       socketService.joinParticipant(participant.id);
       socketService.onAnswerResult(handleAnswerResult);
     }
-  }, [participant]);
+  }, [participant, handleAnswerResult]);
 
   const loadQuestions = async () => {
     try {
@@ -64,7 +84,7 @@ const ParticipantPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const result = await gameApi.submitAnswer({
+      await gameApi.submitAnswer({
         participantId: participant.id,
         questionId: currentQuestion.id,
         selectedAnswer,
@@ -77,25 +97,7 @@ const ParticipantPage: React.FC = () => {
     }
   };
 
-  const handleAnswerResult = (result: SubmitAnswerResponse) => {
-    setLastResult(result);
-    setShowResult(true);
-    setIsSubmitting(false);
-    
-    // Update participant score if we have the updated data
-    if (participant && result.success && result.isCorrect) {
-      setParticipant(prev => prev ? { ...prev, score: prev.score + result.points } : null);
-    }
 
-    // Auto-advance to next question after 3 seconds
-    setTimeout(() => {
-      setShowResult(false);
-      setSelectedAnswer('');
-      if (currentQuestionIndex < questions.length - 1) {
-        setCurrentQuestionIndex(prev => prev + 1);
-      }
-    }, 3000);
-  };
 
   const resetGame = () => {
     setParticipant(null);
