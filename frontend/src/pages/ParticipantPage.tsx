@@ -23,6 +23,7 @@ const ParticipantPage: React.FC = () => {
   const [answeredQuestions, setAnsweredQuestions] = useState<Set<string>>(new Set());
   const [hasNewQuestion, setHasNewQuestion] = useState(false);
   const [currentDisplayScore, setCurrentDisplayScore] = useState(0);
+  const [submitTimeoutId, setSubmitTimeoutId] = useState<NodeJS.Timeout | null>(null);
 
   const currentQuestion = questions[currentQuestionIndex];
   const hasAnsweredCurrentQuestion = currentQuestion && answeredQuestions.has(currentQuestion.id);
@@ -139,6 +140,12 @@ const ParticipantPage: React.FC = () => {
   };
 
   const handleAnswerResult = React.useCallback((result: SubmitAnswerResponse) => {
+    // Clear any pending timeout
+    if (submitTimeoutId) {
+      clearTimeout(submitTimeoutId);
+      setSubmitTimeoutId(null);
+    }
+    
     setLastResult(result);
     setShowResult(true);
     setIsSubmitting(false);
@@ -161,7 +168,7 @@ const ParticipantPage: React.FC = () => {
       setShowLeaderboard(true);
       loadLeaderboard();
     }, 3000);
-  }, [participant, currentQuestion]);
+  }, [participant, currentQuestion, submitTimeoutId]);
 
   const handleNewQuestionClick = () => {
     setHasNewQuestion(false);
@@ -281,17 +288,44 @@ const ParticipantPage: React.FC = () => {
   const handleAnswerSubmit = async () => {
     if (!participant || !currentQuestion || !selectedAnswer || isSubmitting) return;
     setIsSubmitting(true);
+    
+    // Set a timeout to handle cases where WebSocket callback doesn't arrive
+    const timeoutId = setTimeout(() => {
+      console.warn('WebSocket callback timeout, falling back to manual result handling');
+      setIsSubmitting(false);
+      setNotification('⚠️ Connection issue detected. Please check your answer was submitted.');
+      setTimeout(() => setNotification(null), 5000);
+      setSubmitTimeoutId(null);
+    }, 10000); // 10 second timeout
+    
+    setSubmitTimeoutId(timeoutId);
+    
     try {
-      await gameApi.submitAnswer({
+      const result = await gameApi.submitAnswer({
         participantId: participant.id,
         questionId: currentQuestion.id,
         selectedAnswer,
         password: password.trim(),
       });
+      
+      // If we get a direct result (fallback), handle it immediately
+      if (result && !result.success) {
+        clearTimeout(timeoutId);
+        setIsSubmitting(false);
+        setNotification(`❌ ${result.message}`);
+        setTimeout(() => setNotification(null), 5000);
+        return;
+      }
+      
+      // Clear timeout when we get a successful response
       // The result will be handled by the WebSocket callback
+      // But we keep the timeout as a fallback
     } catch (error) {
       console.error('Error submitting answer:', error);
+      clearTimeout(timeoutId);
       setIsSubmitting(false);
+      setNotification('❌ Failed to submit answer. Please try again.');
+      setTimeout(() => setNotification(null), 5000);
     }
   };
 
