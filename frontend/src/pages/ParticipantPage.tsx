@@ -97,8 +97,6 @@ const ParticipantPage: React.FC = () => {
     }
   };
 
-
-
   const resetGame = () => {
     setParticipant(null);
     setCurrentQuestionIndex(0);
@@ -251,12 +249,13 @@ const ParticipantPage: React.FC = () => {
             {Object.entries(currentQuestion.options).map(([key, value]) => (
               <motion.button
                 key={key}
+                data-testid={`answer-option-${key}`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setSelectedAnswer(key)}
                 className={`w-full p-4 rounded-lg border-2 transition-all duration-200 text-left ${
                   selectedAnswer === key
-                    ? 'border-primary-500 bg-primary-500/20 text-primary-300'
+                    ? 'border-primary-500 bg-primary-500/20 text-primary-300 selected'
                     : 'border-gray-600 bg-gray-700/50 text-gray-300 hover:border-gray-500'
                 }`}
               >
@@ -278,6 +277,7 @@ const ParticipantPage: React.FC = () => {
             onClick={handleAnswerSubmit}
             disabled={!selectedAnswer || isSubmitting}
             className="btn-primary px-8 py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="submit-answer-btn"
           >
             {isSubmitting ? 'Submitting...' : 'Submit Answer'}
           </button>

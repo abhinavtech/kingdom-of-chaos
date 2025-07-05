@@ -18,9 +18,4 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'echo "Services should be running on localhost:3000 and localhost:3001"',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-  },
 }); 

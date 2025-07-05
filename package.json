@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/abhinavtech/kingdom-of-chaos#readme",
   "devDependencies": {
-    "@playwright/test": "^1.53.2"
+    "@playwright/test": "^1.53.2",
+    "@types/node": "^24.0.10"
   }
 }

@@ -77,6 +77,7 @@ const AdminPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
         <motion.div
+          data-testid="loading-spinner"
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full"
@@ -109,6 +110,7 @@ const AdminPage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="card text-center"
+            data-testid="participants-stat"
           >
             <div className="text-3xl font-bold text-primary-400 mb-2">
               {participants.length}
@@ -121,6 +123,7 @@ const AdminPage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
             className="card text-center"
+            data-testid="questions-stat"
           >
             <div className="text-3xl font-bold text-chaos-400 mb-2">
               {questions.length}
@@ -133,6 +136,7 @@ const AdminPage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
             className="card text-center"
+            data-testid="active-players-stat"
           >
             <div className="text-3xl font-bold text-green-400 mb-2">
               {participants.filter(p => p.score > 0).length}

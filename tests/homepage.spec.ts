@@ -11,34 +11,28 @@ test.describe('Homepage', () => {
   });
 
   test('should display the game description', async ({ page }) => {
-    await expect(page.locator('p')).toContainText('Enter the realm where knowledge reigns supreme');
+    await expect(page.locator('p').first()).toContainText('Enter the realm where knowledge reigns supreme');
   });
 
   test('should have participant and admin navigation buttons', async ({ page }) => {
-    const participantButton = page.locator('a[href="/participant"]');
-    const adminButton = page.locator('a[href="/admin"]');
-    
-    await expect(participantButton).toBeVisible();
-    await expect(adminButton).toBeVisible();
-    
-    await expect(participantButton).toContainText('PARTICIPANT');
-    await expect(adminButton).toContainText('ADMIN');
+    await expect(page.locator('text=🎮 PARTICIPANT')).toBeVisible();
+    await expect(page.locator('text=👑 ADMIN')).toBeVisible();
   });
 
-  test('should navigate to participant page when participant button is clicked', async ({ page }) => {
-    await page.click('a[href="/participant"]');
+  test('should navigate to participant page', async ({ page }) => {
+    await page.click('text=🎮 PARTICIPANT');
     await expect(page).toHaveURL('/participant');
   });
 
-  test('should navigate to admin page when admin button is clicked', async ({ page }) => {
-    await page.click('a[href="/admin"]');
+  test('should navigate to admin page', async ({ page }) => {
+    await page.click('text=👑 ADMIN');
     await expect(page).toHaveURL('/admin');
   });
 
   test('should have proper styling and animations', async ({ page }) => {
-    // Check for gradient background
-    const body = page.locator('body');
-    await expect(body).toHaveCSS('background-image', /gradient/);
+    // Check for main container with gradient background
+    const container = page.locator('.min-h-screen').first();
+    await expect(container).toHaveClass(/bg-gradient-to-br/);
     
     // Check for game features description
     await expect(page.locator('text=Real-time multiplayer quiz game')).toBeVisible();

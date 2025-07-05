@@ -8,9 +8,7 @@ class SocketService {
 
   connect(): Socket {
     if (!this.socket) {
-      this.socket = io(SOCKET_URL, {
-        transports: ['websocket'],
-      });
+      this.socket = io(SOCKET_URL);
     }
     return this.socket;
   }
