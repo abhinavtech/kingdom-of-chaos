@@ -25,6 +25,7 @@ export class QuestionService {
 
   async ensureFirstQuestionActive(): Promise<void> {
     const firstQuestion = await this.questionRepository.findOne({
+      where: {},
       order: { createdAt: 'ASC' },
     });
     
@@ -59,7 +60,9 @@ export class QuestionService {
       where: { isActive: false },
       order: { createdAt: 'ASC' },
     });
+    
     if (!nextQuestion) return null;
+    
     nextQuestion.isActive = true;
     await this.questionRepository.save(nextQuestion);
     return nextQuestion;
