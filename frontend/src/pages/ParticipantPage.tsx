@@ -27,6 +27,32 @@ const ParticipantPage: React.FC = () => {
   const hasAnsweredCurrentQuestion = currentQuestion && answeredQuestions.has(currentQuestion.id);
 
   useEffect(() => {
+    // Check if user is already authenticated on component mount
+    const checkAuth = async () => {
+      const participantData = localStorage.getItem('participantData');
+      const participantPassword = localStorage.getItem('participantPassword');
+      
+      if (participantData && participantPassword) {
+        try {
+          const storedParticipant = JSON.parse(participantData);
+          // Verify the participant still exists and password is correct
+          const verifiedParticipant = await participantsApi.login({ 
+            name: storedParticipant.name, 
+            password: participantPassword 
+          });
+          setParticipant(verifiedParticipant);
+          setPassword(participantPassword);
+        } catch (error) {
+          console.error('Stored participant verification failed:', error);
+          // Clear invalid stored data
+          localStorage.removeItem('participantData');
+          localStorage.removeItem('participantPassword');
+        }
+      }
+    };
+    
+    checkAuth();
+    
     loadQuestions();
     requestNotificationPermission();
     
@@ -180,6 +206,11 @@ const ParticipantPage: React.FC = () => {
         // Try to create new participant
         participant = await participantsApi.create({ name: name.trim(), password: password.trim() });
       }
+      
+      // Store participant data in localStorage for persistence
+      localStorage.setItem('participantData', JSON.stringify(participant));
+      localStorage.setItem('participantPassword', password.trim());
+      
       setParticipant(participant);
     } catch (error: any) {
       console.error('Error joining game:', error);
@@ -214,6 +245,10 @@ const ParticipantPage: React.FC = () => {
   };
 
   const resetGame = () => {
+    // Clear localStorage
+    localStorage.removeItem('participantData');
+    localStorage.removeItem('participantPassword');
+    
     setParticipant(null);
     setCurrentQuestionIndex(0);
     setSelectedAnswer('');
@@ -226,6 +261,13 @@ const ParticipantPage: React.FC = () => {
     setHasNewQuestion(false);
     setIsLogin(false);
     setAuthError('');
+    
+    // Disconnect from socket
+    socketService.disconnect();
+  };
+
+  const handleLogout = () => {
+    resetGame();
   };
 
   const getRankColor = (index: number) => {
@@ -379,25 +421,31 @@ const ParticipantPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4">
         <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex justify-between items-center mb-8"
-          >
-            <div>
-              <h1 className="text-2xl font-game font-bold text-primary-400">
-                {participant.name}
-              </h1>
-              <p className="text-gray-300">Score: {participant.score}</p>
-            </div>
-            
-            <div className="text-right">
-              <p className="text-sm text-gray-400">
-                Questions Answered: {answeredQuestions.size} of {questions.length}
-              </p>
-            </div>
-          </motion.div>
+                  {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex justify-between items-center mb-8"
+        >
+          <div>
+            <h1 className="text-2xl font-game font-bold text-primary-400">
+              {participant.name}
+            </h1>
+            <p className="text-gray-300">Score: {participant.score}</p>
+          </div>
+          
+          <div className="text-right">
+            <p className="text-sm text-gray-400 mb-2">
+              Questions Answered: {answeredQuestions.size} of {questions.length}
+            </p>
+            <button
+              onClick={handleLogout}
+              className="text-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 px-3 py-1 rounded-lg border border-red-500/50 hover:border-red-500 transition-all duration-200"
+            >
+              Logout
+            </button>
+          </div>
+        </motion.div>
 
           {/* New Question Notification */}
           {hasNewQuestion && (
@@ -523,44 +571,75 @@ const ParticipantPage: React.FC = () => {
   // If no current question or all questions answered
   if (!currentQuestion || hasAnsweredCurrentQuestion) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="card max-w-md w-full text-center"
-        >
-          <h1 className="text-3xl font-game font-bold mb-8 text-primary-400">
-            {answeredQuestions.size === questions.length ? 'All Questions Completed!' : 'Waiting for Questions...'}
-          </h1>
-          
-          <p className="text-xl text-gray-300 mb-4">
-            Current Score: {participant.score}
-          </p>
-          
-          <p className="text-gray-400 mb-6">
-            {answeredQuestions.size === questions.length 
-              ? 'You have answered all available questions. Great job!' 
-              : 'New questions will be released by the admin. You\'ll get a notification when they\'re ready!'}
-          </p>
-          
-          <button
-            onClick={() => {
-              setShowLeaderboard(true);
-              loadLeaderboard();
-            }}
-            className="btn-primary mb-4"
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-between items-center mb-8"
           >
-            View Leaderboard
-          </button>
-          
-          <button
-            onClick={resetGame}
-            className="btn-secondary"
-          >
-            Leave Game
-          </button>
-        </motion.div>
+            <div>
+              <h1 className="text-2xl font-game font-bold text-primary-400">
+                {participant.name}
+              </h1>
+              <p className="text-gray-300">Score: {participant.score}</p>
+            </div>
+            
+            <div className="text-right">
+              <p className="text-sm text-gray-400 mb-2">
+                Questions Answered: {answeredQuestions.size} of {questions.length}
+              </p>
+              <button
+                onClick={handleLogout}
+                className="text-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 px-3 py-1 rounded-lg border border-red-500/50 hover:border-red-500 transition-all duration-200"
+              >
+                Logout
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Main Content */}
+          <div className="flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="card max-w-md w-full text-center"
+            >
+              <h1 className="text-3xl font-game font-bold mb-8 text-primary-400">
+                {answeredQuestions.size === questions.length ? 'All Questions Completed!' : 'Waiting for Questions...'}
+              </h1>
+              
+              <p className="text-xl text-gray-300 mb-4">
+                Current Score: {participant.score}
+              </p>
+              
+              <p className="text-gray-400 mb-6">
+                {answeredQuestions.size === questions.length 
+                  ? 'You have answered all available questions. Great job!' 
+                  : 'New questions will be released by the admin. You\'ll get a notification when they\'re ready!'}
+              </p>
+              
+              <button
+                onClick={() => {
+                  setShowLeaderboard(true);
+                  loadLeaderboard();
+                }}
+                className="btn-primary mb-4"
+              >
+                View Leaderboard
+              </button>
+              
+              <button
+                onClick={resetGame}
+                className="btn-secondary"
+              >
+                Leave Game
+              </button>
+            </motion.div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -582,9 +661,15 @@ const ParticipantPage: React.FC = () => {
           </div>
           
           <div className="text-right">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-400 mb-2">
               Question {currentQuestionIndex + 1} of {questions.length}
             </p>
+            <button
+              onClick={handleLogout}
+              className="text-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 px-3 py-1 rounded-lg border border-red-500/50 hover:border-red-500 transition-all duration-200"
+            >
+              Logout
+            </button>
           </div>
         </motion.div>
 
