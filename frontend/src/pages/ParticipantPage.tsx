@@ -22,6 +22,7 @@ const ParticipantPage: React.FC = () => {
   const [leaderboard, setLeaderboard] = useState<Participant[]>([]);
   const [answeredQuestions, setAnsweredQuestions] = useState<Set<string>>(new Set());
   const [hasNewQuestion, setHasNewQuestion] = useState(false);
+  const [currentDisplayScore, setCurrentDisplayScore] = useState(0);
 
   const currentQuestion = questions[currentQuestionIndex];
   const hasAnsweredCurrentQuestion = currentQuestion && answeredQuestions.has(currentQuestion.id);
@@ -41,6 +42,7 @@ const ParticipantPage: React.FC = () => {
             password: participantPassword 
           });
           setParticipant(verifiedParticipant);
+          setCurrentDisplayScore(verifiedParticipant.score);
           setPassword(participantPassword);
         } catch (error) {
           console.error('Stored participant verification failed:', error);
@@ -148,7 +150,9 @@ const ParticipantPage: React.FC = () => {
     
     // Update participant score if we have the updated data
     if (participant && result.success && result.isCorrect) {
-      setParticipant(prev => prev ? { ...prev, score: prev.score + result.points } : null);
+      const newScore = participant.score + result.points;
+      setParticipant(prev => prev ? { ...prev, score: newScore } : null);
+      setCurrentDisplayScore(newScore);
     }
 
     // Show result for 3 seconds, then show leaderboard
@@ -258,6 +262,7 @@ const ParticipantPage: React.FC = () => {
       localStorage.setItem('participantPassword', password.trim());
       
       setParticipant(participant);
+      setCurrentDisplayScore(participant.score);
     } catch (error: any) {
       console.error('Error joining game:', error);
       if (error.response?.status === 400 && error.response?.data?.message?.includes('already exists')) {
@@ -307,6 +312,7 @@ const ParticipantPage: React.FC = () => {
     setHasNewQuestion(false);
     setIsLogin(false);
     setAuthError('');
+    setCurrentDisplayScore(0);
     
     // Disconnect from socket
     socketService.disconnect();
@@ -456,7 +462,7 @@ const ParticipantPage: React.FC = () => {
           )}
           
           <p className="text-gray-300">
-            Current Score: {participant.score}
+            Current Score: {currentDisplayScore}
           </p>
         </motion.div>
       </div>
@@ -477,7 +483,7 @@ const ParticipantPage: React.FC = () => {
             <h1 className="text-2xl font-game font-bold text-primary-400">
               {participant.name}
             </h1>
-            <p className="text-gray-300">Score: {participant.score}</p>
+            <p className="text-gray-300">Score: {currentDisplayScore}</p>
           </div>
           
           <div className="text-right">
@@ -629,7 +635,7 @@ const ParticipantPage: React.FC = () => {
               <h1 className="text-2xl font-game font-bold text-primary-400">
                 {participant.name}
               </h1>
-              <p className="text-gray-300">Score: {participant.score}</p>
+              <p className="text-gray-300">Score: {currentDisplayScore}</p>
             </div>
             
             <div className="text-right">
@@ -658,7 +664,7 @@ const ParticipantPage: React.FC = () => {
               </h1>
               
               <p className="text-xl text-gray-300 mb-4">
-                Current Score: {participant.score}
+                Current Score: {currentDisplayScore}
               </p>
               
               <p className="text-gray-400 mb-6">
