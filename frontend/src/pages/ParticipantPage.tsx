@@ -62,6 +62,20 @@ const ParticipantPage: React.FC = () => {
     socketService.onAnswerResult(handleAnswerResult);
     socketService.onQuestionReleased(handleQuestionReleased);
     socketService.onLeaderboardUpdate(handleLeaderboardUpdate);
+    socketService.onQuestionsReset(() => {
+      setNotification('🔄 All questions have been reset! Starting from the beginning...');
+      // Reset participant state
+      setAnsweredQuestions(new Set());
+      setCurrentQuestionIndex(0);
+      setSelectedAnswer('');
+      setShowLeaderboard(false);
+      setShowResult(false);
+      setHasNewQuestion(false);
+      // Reload questions and leaderboard
+      loadQuestions();
+      loadLeaderboard();
+      setTimeout(() => setNotification(null), 4000);
+    });
     
     return () => {
       socketService.disconnect();
@@ -105,8 +119,15 @@ const ParticipantPage: React.FC = () => {
       `${question.questionText.substring(0, 50)}...`
     );
     
-    // Reload questions
-    loadQuestions();
+    // Reload questions and update state
+    loadQuestions().then((updatedQuestions) => {
+      // After questions are loaded, automatically find and set the next unanswered question
+      // This ensures that when the user clicks "Answer New Question", they go directly to the new question
+      const nextUnansweredIndex = updatedQuestions.findIndex(q => !answeredQuestions.has(q.id));
+      if (nextUnansweredIndex !== -1) {
+        setCurrentQuestionIndex(nextUnansweredIndex);
+      }
+    });
     
     setTimeout(() => setNotification(null), 6000);
   };
@@ -141,11 +162,20 @@ const ParticipantPage: React.FC = () => {
   const handleNewQuestionClick = () => {
     setHasNewQuestion(false);
     setShowLeaderboard(false);
+    setSelectedAnswer(''); // Clear any previously selected answer
     
     // Find the next unanswered question
     const nextUnansweredIndex = questions.findIndex(q => !answeredQuestions.has(q.id));
     if (nextUnansweredIndex !== -1) {
       setCurrentQuestionIndex(nextUnansweredIndex);
+    } else {
+      // If no unanswered questions found, reload questions to make sure we have the latest data
+      loadQuestions().then((updatedQuestions) => {
+        const nextUnansweredIndex = updatedQuestions.findIndex(q => !answeredQuestions.has(q.id));
+        if (nextUnansweredIndex !== -1) {
+          setCurrentQuestionIndex(nextUnansweredIndex);
+        }
+      });
     }
   };
 
@@ -171,6 +201,20 @@ const ParticipantPage: React.FC = () => {
     }
   }, [showLeaderboard]);
 
+  // Auto-advance to next unanswered question when questions are updated
+  useEffect(() => {
+    if (questions.length > 0 && (!currentQuestion || hasAnsweredCurrentQuestion)) {
+      const nextUnansweredIndex = questions.findIndex(q => !answeredQuestions.has(q.id));
+      if (nextUnansweredIndex !== -1 && nextUnansweredIndex !== currentQuestionIndex) {
+        setCurrentQuestionIndex(nextUnansweredIndex);
+        // If we're in leaderboard view and there's a new question, show the notification
+        if (showLeaderboard) {
+          setHasNewQuestion(true);
+        }
+      }
+    }
+  }, [questions, answeredQuestions, currentQuestion, hasAnsweredCurrentQuestion, currentQuestionIndex, showLeaderboard]);
+
   const loadParticipantAnswers = async () => {
     if (!participant) return;
     try {
@@ -186,8 +230,10 @@ const ParticipantPage: React.FC = () => {
     try {
       const questionsData = await questionsApi.getAll();
       setQuestions(questionsData);
+      return questionsData;
     } catch (error) {
       console.error('Error loading questions:', error);
+      return [];
     }
   };
 

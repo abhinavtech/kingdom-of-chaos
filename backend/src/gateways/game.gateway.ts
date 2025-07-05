@@ -60,4 +60,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async broadcastQuestionReleased(question: any) {
     this.server.emit('questionReleased', question);
   }
+
+  async broadcastQuestionsReset() {
+    this.server.emit('questionsReset', { message: 'All questions have been reset' });
+  }
 } 

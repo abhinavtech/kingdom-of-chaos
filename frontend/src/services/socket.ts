@@ -58,6 +58,12 @@ class SocketService {
       this.socket.on('questionReleased', callback);
     }
   }
+
+  onQuestionsReset(callback: () => void): void {
+    if (this.socket) {
+      this.socket.on('questionsReset', callback);
+    }
+  }
 }
 
 export const socketService = new SocketService();

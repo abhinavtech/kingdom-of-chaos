@@ -29,4 +29,14 @@ export class QuestionController {
       return { success: false, message: 'No more questions to release' };
     }
   }
+
+  @Post('reset-all')
+  async resetAll() {
+    const result = await this.questionService.resetAllQuestions();
+    // Broadcast to all clients that questions have been reset
+    await this.gameGateway.broadcastQuestionsReset();
+    return { success: true, ...result };
+  }
+
+
 } 

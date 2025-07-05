@@ -49,6 +49,12 @@ const AdminPage: React.FC = () => {
         setNotification(`New question released: ${question.questionText}`);
         setTimeout(() => setNotification(null), 4000);
       });
+
+      socketService.onQuestionsReset(() => {
+        setNotification('All questions have been reset! Only the first question is now active.');
+        setTimeout(() => setNotification(null), 4000);
+        loadInitialData();
+      });
       
       return () => {
         socketService.removeAllListeners();
@@ -138,6 +144,34 @@ const AdminPage: React.FC = () => {
       }
     } catch (e) {
       setNotification('Error releasing question');
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleResetQuestions = async () => {
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      'Are you sure you want to reset all questions? This will:\n\n' +
+      '• Set all questions to unreleased status\n' +
+      '• Only the first question will remain active\n' +
+      '• All participants will need to start from the beginning\n\n' +
+      'This action cannot be undone.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const res = await questionsApi.resetAll();
+      if (res.success) {
+        setNotification(`Questions reset successfully! ${res.questionsReset} questions were reset.`);
+        setTimeout(() => setNotification(null), 4000);
+        await loadInitialData();
+      } else {
+        setNotification('Failed to reset questions');
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (e) {
+      setNotification('Error resetting questions');
       setTimeout(() => setNotification(null), 3000);
     }
   };
@@ -352,6 +386,13 @@ const AdminPage: React.FC = () => {
                 className="btn-chaos"
               >
                 🚀 Release Next Question
+              </button>
+              <button
+                onClick={handleResetQuestions}
+                className="btn-secondary border-red-500 text-red-400 hover:bg-red-500 hover:text-white"
+                title="Reset all questions to unreleased status"
+              >
+                🔄 Reset Questions
               </button>
               
               <div className="flex items-center gap-2">

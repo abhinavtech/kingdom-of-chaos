@@ -67,4 +67,37 @@ export class QuestionService {
     await this.questionRepository.save(nextQuestion);
     return nextQuestion;
   }
+
+  async resetAllQuestions(): Promise<{ message: string; questionsReset: number }> {
+    try {
+      // Get all questions
+      const allQuestions = await this.questionRepository.find();
+      
+      // Update all questions to inactive, then activate the first one
+      await this.questionRepository.query(
+        'UPDATE questions SET is_active = false'
+      );
+      
+      // Activate only the first question
+      const firstQuestion = await this.questionRepository.findOne({
+        where: {},
+        order: { createdAt: 'ASC' },
+      });
+      
+      if (firstQuestion) {
+        await this.questionRepository.query(
+          'UPDATE questions SET is_active = true WHERE id = $1',
+          [firstQuestion.id]
+        );
+      }
+      
+      return {
+        message: 'All questions have been reset. Only the first question is now active.',
+        questionsReset: allQuestions.length,
+      };
+    } catch (error) {
+      console.error('Error resetting questions:', error);
+      throw error;
+    }
+  }
 } 
