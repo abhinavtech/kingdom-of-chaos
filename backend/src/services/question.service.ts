@@ -2,12 +2,18 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Question } from '../entities/question.entity';
+import { ParticipantAnswer } from '../entities/participant-answer.entity';
+import { Participant } from '../entities/participant.entity';
 
 @Injectable()
 export class QuestionService {
   constructor(
     @InjectRepository(Question)
     private questionRepository: Repository<Question>,
+    @InjectRepository(ParticipantAnswer)
+    private participantAnswerRepository: Repository<ParticipantAnswer>,
+    @InjectRepository(Participant)
+    private participantRepository: Repository<Participant>,
   ) {}
 
   async findAll(): Promise<Question[]> {
@@ -68,10 +74,18 @@ export class QuestionService {
     return nextQuestion;
   }
 
-  async resetAllQuestions(): Promise<{ message: string; questionsReset: number }> {
+  async resetAllQuestions(): Promise<{ message: string; questionsReset: number; answersCleared: number; participantsReset: number }> {
     try {
-      // Get all questions
+      // Get counts before reset
       const allQuestions = await this.questionRepository.find();
+      const answersCount = await this.participantAnswerRepository.count();
+      const participantsCount = await this.participantRepository.count();
+      
+      // Clear all participant answers first
+      await this.participantAnswerRepository.query('DELETE FROM participant_answers');
+      
+      // Reset all participant scores to 0
+      await this.participantRepository.query('UPDATE participants SET score = 0');
       
       // Update all questions to inactive, then activate the first one
       await this.questionRepository.query(
@@ -92,8 +106,10 @@ export class QuestionService {
       }
       
       return {
-        message: 'All questions have been reset. Only the first question is now active.',
+        message: 'All questions have been reset. Only the first question is now active. All participant answers and scores have been cleared.',
         questionsReset: allQuestions.length,
+        answersCleared: answersCount,
+        participantsReset: participantsCount,
       };
     } catch (error) {
       console.error('Error resetting questions:', error);

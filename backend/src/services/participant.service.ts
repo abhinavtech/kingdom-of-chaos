@@ -73,9 +73,16 @@ export class ParticipantService {
   }
 
   async getLeaderboard(): Promise<Participant[]> {
-    return this.participantRepository.find({
+    const participants = await this.participantRepository.find({
+      relations: ['answers'],
       order: { score: 'DESC' },
     });
+    
+    // Map to include questionsAnswered in the response
+    return participants.map(participant => ({
+      ...participant,
+      questionsAnswered: participant.answers ? participant.answers.length : 0,
+    }));
   }
 
   async validatePassword(id: string, password: string): Promise<boolean> {

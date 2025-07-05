@@ -154,7 +154,8 @@ const AdminPage: React.FC = () => {
       'Are you sure you want to reset all questions? This will:\n\n' +
       '• Set all questions to unreleased status\n' +
       '• Only the first question will remain active\n' +
-      '• All participants will need to start from the beginning\n\n' +
+      '• Clear ALL participant answers and reset scores to 0\n' +
+      '• All participants will start fresh from the beginning\n\n' +
       'This action cannot be undone.'
     );
 
@@ -163,8 +164,8 @@ const AdminPage: React.FC = () => {
     try {
       const res = await questionsApi.resetAll();
       if (res.success) {
-        setNotification(`Questions reset successfully! ${res.questionsReset} questions were reset.`);
-        setTimeout(() => setNotification(null), 4000);
+        setNotification(`Reset complete! ${res.questionsReset} questions reset, ${res.answersCleared} answers cleared, ${res.participantsReset} participants reset to 0 points.`);
+        setTimeout(() => setNotification(null), 6000);
         await loadInitialData();
       } else {
         setNotification('Failed to reset questions');
