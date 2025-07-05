@@ -59,11 +59,23 @@ FRONTEND_PID=$!
 
 echo "🎉 Kingdom of Chaos is starting up!"
 echo ""
-echo "📱 Frontend: http://localhost:3000"
+
+# Get local IP address for network access
+LOCAL_IP=$(ifconfig | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -1)
+
+echo "📱 Frontend:"
+echo "   Local:   http://localhost:3000"
+if [ ! -z "$LOCAL_IP" ]; then
+    echo "   Network: http://$LOCAL_IP:3000"
+fi
 echo "🔧 Backend API: http://localhost:3001/api"
 echo "🐘 Database: localhost:5432"
 echo ""
-echo "🎮 Open http://localhost:3000 in your browser to start playing!"
+echo "🎮 Access URLs:"
+echo "   🏠 Local:   http://localhost:3000"
+if [ ! -z "$LOCAL_IP" ]; then
+    echo "   🌐 Network: http://$LOCAL_IP:3000 (for other devices)"
+fi
 echo ""
 echo "Press Ctrl+C to stop all services..."
 
