@@ -177,6 +177,52 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  const handleDeleteAllUsers = async () => {
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      '⚠️ DANGER: DELETE ALL USERS ⚠️\n\n' +
+      'This will PERMANENTLY delete:\n\n' +
+      '• ALL participants and their accounts\n' +
+      '• ALL participant answers and scores\n' +
+      '• ALL game progress and history\n\n' +
+      'This action is IRREVERSIBLE and will completely wipe the participant database!\n\n' +
+      'Are you absolutely sure you want to continue?'
+    );
+
+    if (!confirmed) return;
+
+    // Double confirmation for such a destructive action
+    const doubleConfirmed = window.confirm(
+      'FINAL WARNING!\n\n' +
+      'You are about to delete ALL users and their data.\n' +
+      'This cannot be undone.\n\n' +
+      'Type "DELETE ALL USERS" in the next prompt to confirm.'
+    );
+
+    if (!doubleConfirmed) return;
+
+    const userInput = window.prompt(
+      'To confirm deletion, type exactly: DELETE ALL USERS'
+    );
+
+    if (userInput !== 'DELETE ALL USERS') {
+      setNotification('Deletion cancelled - confirmation text did not match');
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+
+    try {
+      const result = await adminApi.deleteAllUsers();
+      setNotification(`🗑️ ${result.message} (${result.deletedParticipants} participants, ${result.deletedAnswers} answers deleted)`);
+      setTimeout(() => setNotification(null), 6000);
+      await loadInitialData(); // Refresh the data
+    } catch (error: any) {
+      console.error('Error deleting all users:', error);
+      setNotification('Error deleting users: ' + (error.response?.data?.message || error.message));
+      setTimeout(() => setNotification(null), 4000);
+    }
+  };
+
   const getRankColor = (index: number) => {
     switch (index) {
       case 0: return 'text-yellow-400 bg-yellow-400/20 border-yellow-400';
@@ -394,6 +440,13 @@ const AdminPage: React.FC = () => {
                 title="Reset all questions to unreleased status"
               >
                 🔄 Reset Questions
+              </button>
+              <button
+                onClick={handleDeleteAllUsers}
+                className="btn-secondary border-red-600 text-red-500 hover:bg-red-600 hover:text-white bg-red-900/20"
+                title="⚠️ DANGER: Permanently delete all users and their data"
+              >
+                🗑️ Delete All Users
               </button>
               
               <div className="flex items-center gap-2">

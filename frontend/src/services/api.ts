@@ -96,6 +96,20 @@ export const adminApi = {
     });
     return response.data;
   },
+
+  deleteAllUsers: async (): Promise<{ message: string; deletedParticipants: number; deletedAnswers: number }> => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      throw new Error('No admin token found');
+    }
+
+    const response = await api.delete('/admin/users/all', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  },
 };
 
 export default api; 
