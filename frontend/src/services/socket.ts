@@ -1,7 +1,22 @@
 import { io, Socket } from 'socket.io-client';
 import { Participant, SubmitAnswerResponse } from '../types';
 
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
+// Dynamically determine Socket URL based on current hostname
+const getSocketUrl = () => {
+  if (process.env.REACT_APP_SOCKET_URL) {
+    return process.env.REACT_APP_SOCKET_URL;
+  }
+  
+  // If accessing via localhost, use localhost for socket
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:3001';
+  }
+  
+  // If accessing via IP address, use the same IP for socket
+  return `http://${window.location.hostname}:3001`;
+};
+
+const SOCKET_URL = getSocketUrl();
 
 class SocketService {
   private socket: Socket | null = null;

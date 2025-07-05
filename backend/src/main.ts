@@ -7,7 +7,11 @@ async function bootstrap() {
   
   // Enable CORS
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: [
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+      'http://192.168.178.81:3000', // Allow network IP access
+      /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:3000$/, // Allow any local network IP
+    ],
     credentials: true,
   });
   
