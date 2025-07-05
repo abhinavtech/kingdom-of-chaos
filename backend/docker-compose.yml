@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: kingdom-of-chaos-db
+    restart: always
+    environment:
+      POSTGRES_DB: kingdom_of_chaos
+      POSTGRES_USER: gameuser
+      POSTGRES_PASSWORD: gamepass123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - game-network
+
+volumes:
+  postgres_data:
+
+networks:
+  game-network:
+    driver: bridge 
