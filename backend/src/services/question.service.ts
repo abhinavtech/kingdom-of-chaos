@@ -17,6 +17,23 @@ export class QuestionService {
     });
   }
 
+  async findAllQuestions(): Promise<Question[]> {
+    return this.questionRepository.find({
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  async ensureFirstQuestionActive(): Promise<void> {
+    const firstQuestion = await this.questionRepository.findOne({
+      order: { createdAt: 'ASC' },
+    });
+    
+    if (firstQuestion && !firstQuestion.isActive) {
+      firstQuestion.isActive = true;
+      await this.questionRepository.save(firstQuestion);
+    }
+  }
+
   async findOne(id: string): Promise<Question> {
     return this.questionRepository.findOne({
       where: { id, isActive: true },

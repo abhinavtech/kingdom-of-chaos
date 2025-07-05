@@ -1,14 +1,28 @@
-import { Controller, Get, Post, Body, Param, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ValidationPipe, HttpException, HttpStatus } from '@nestjs/common';
 import { ParticipantService } from '../services/participant.service';
 import { CreateParticipantDto } from '../dto/create-participant.dto';
+import { ParticipantLoginDto } from '../dto/participant-login.dto';
 
 @Controller('participants')
 export class ParticipantController {
   constructor(private readonly participantService: ParticipantService) {}
 
   @Post()
-  create(@Body(ValidationPipe) createParticipantDto: CreateParticipantDto) {
-    return this.participantService.create(createParticipantDto);
+  async create(@Body(ValidationPipe) createParticipantDto: CreateParticipantDto) {
+    try {
+      return await this.participantService.create(createParticipantDto);
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  @Post('login')
+  async login(@Body(ValidationPipe) participantLoginDto: ParticipantLoginDto) {
+    const participant = await this.participantService.login(participantLoginDto);
+    if (!participant) {
+      throw new HttpException('Invalid name or password', HttpStatus.UNAUTHORIZED);
+    }
+    return participant;
   }
 
   @Get()

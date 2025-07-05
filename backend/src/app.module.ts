@@ -11,11 +11,13 @@ import { ParticipantAnswer } from './entities/participant-answer.entity';
 import { ParticipantService } from './services/participant.service';
 import { QuestionService } from './services/question.service';
 import { GameService } from './services/game.service';
+import { AdminService } from './services/admin.service';
 
 // Controllers
 import { ParticipantController } from './controllers/participant.controller';
 import { QuestionController } from './controllers/question.controller';
 import { GameController } from './controllers/game.controller';
+import { AdminController } from './controllers/admin.controller';
 
 // Gateways
 import { GameGateway } from './gateways/game.gateway';
@@ -25,7 +27,7 @@ import { GameGateway } from './gateways/game.gateway';
     TypeOrmModule.forRoot(databaseConfig),
     TypeOrmModule.forFeature([Participant, Question, ParticipantAnswer]),
   ],
-  controllers: [ParticipantController, QuestionController, GameController],
-  providers: [ParticipantService, QuestionService, GameService, GameGateway],
+  controllers: [ParticipantController, QuestionController, GameController, AdminController],
+  providers: [ParticipantService, QuestionService, GameService, AdminService, GameGateway],
 })
 export class AppModule {} 

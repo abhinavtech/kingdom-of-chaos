@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Participant } from '../entities/participant.entity';
 import { CreateParticipantDto } from '../dto/create-participant.dto';
+import { ParticipantLoginDto } from '../dto/participant-login.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -13,12 +14,43 @@ export class ParticipantService {
   ) {}
 
   async create(createParticipantDto: CreateParticipantDto): Promise<Participant> {
+    // Check if participant with this name already exists
+    const existingParticipant = await this.participantRepository.findOne({
+      where: { name: createParticipantDto.name },
+    });
+    
+    if (existingParticipant) {
+      throw new Error('Participant with this name already exists. Please login instead.');
+    }
+    
     const hashedPassword = await bcrypt.hash(createParticipantDto.password, 10);
     const participant = this.participantRepository.create({
       ...createParticipantDto,
       password: hashedPassword,
     });
     return this.participantRepository.save(participant);
+  }
+
+  async login(participantLoginDto: ParticipantLoginDto): Promise<Participant | null> {
+    const { name, password } = participantLoginDto;
+    
+    // Find participant by name
+    const participant = await this.participantRepository.findOne({
+      where: { name },
+      relations: ['answers'],
+    });
+    
+    if (!participant) {
+      return null;
+    }
+    
+    // Validate password
+    const isPasswordValid = await bcrypt.compare(password, participant.password);
+    if (!isPasswordValid) {
+      return null;
+    }
+    
+    return participant;
   }
 
   async findAll(): Promise<Participant[]> {

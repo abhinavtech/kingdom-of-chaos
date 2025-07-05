@@ -24,6 +24,11 @@ export const participantsApi = {
     return response.data;
   },
 
+  login: async (data: CreateParticipantRequest): Promise<Participant> => {
+    const response = await api.post('/participants/login', data);
+    return response.data;
+  },
+
   getAll: async (): Promise<Participant[]> => {
     const response = await api.get('/participants');
     return response.data;
@@ -67,6 +72,23 @@ export const gameApi = {
 
   getParticipantAnswers: async (participantId: string): Promise<ParticipantAnswer[]> => {
     const response = await api.get(`/game/participant/${participantId}/answers`);
+    return response.data;
+  },
+};
+
+// Admin API
+export const adminApi = {
+  login: async (password: string): Promise<{ success: boolean; token?: string; message?: string }> => {
+    const response = await api.post('/admin/login', { password });
+    return response.data;
+  },
+
+  validateToken: async (token: string): Promise<{ valid: boolean; message?: string }> => {
+    const response = await api.get('/admin/validate', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
     return response.data;
   },
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { participantsApi, questionsApi } from '../services/api';
+import { participantsApi, questionsApi, adminApi } from '../services/api';
 import { socketService } from '../services/socket';
 import { Participant, Question } from '../types';
 
@@ -10,24 +10,89 @@ const AdminPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [notification, setNotification] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   useEffect(() => {
-    loadInitialData();
-    
-    // Connect to socket for real-time updates
-    socketService.connect();
-    socketService.joinAdmin();
-    socketService.onLeaderboardUpdate(handleLeaderboardUpdate);
-    socketService.onQuestionReleased((question) => {
-      setNotification(`New question released: ${question.questionText}`);
-      setTimeout(() => setNotification(null), 4000);
-    });
-    
-    return () => {
-      socketService.removeAllListeners();
-      socketService.disconnect();
+    // Check if user is already authenticated on component mount
+    const checkAuth = async () => {
+      const token = localStorage.getItem('adminToken');
+      if (token) {
+        try {
+          const result = await adminApi.validateToken(token);
+          if (result.valid) {
+            setIsAuthenticated(true);
+          } else {
+            localStorage.removeItem('adminToken');
+          }
+        } catch (error) {
+          console.error('Token validation error:', error);
+          localStorage.removeItem('adminToken');
+        }
+      }
     };
+    
+    checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadInitialData();
+      
+      // Connect to socket for real-time updates
+      socketService.connect();
+      socketService.joinAdmin();
+      socketService.onLeaderboardUpdate(handleLeaderboardUpdate);
+      socketService.onQuestionReleased((question) => {
+        setNotification(`New question released: ${question.questionText}`);
+        setTimeout(() => setNotification(null), 4000);
+      });
+      
+      return () => {
+        socketService.removeAllListeners();
+        socketService.disconnect();
+      };
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    setLoginError('');
+
+    try {
+      const result = await adminApi.login(password);
+      
+      if (result.success && result.token) {
+        // Store token in localStorage
+        localStorage.setItem('adminToken', result.token);
+        setIsAuthenticated(true);
+        setPassword('');
+        setLoginError('');
+      } else {
+        setLoginError(result.message || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setLoginError('Login failed. Please try again.');
+    }
+
+    setIsLoggingIn(false);
+  };
+
+  const handleLogout = () => {
+    // Clear token from localStorage
+    localStorage.removeItem('adminToken');
+    setIsAuthenticated(false);
+    setPassword('');
+    setLoginError('');
+    setParticipants([]);
+    setQuestions([]);
+    socketService.removeAllListeners();
+    socketService.disconnect();
+  };
 
   const loadInitialData = async () => {
     try {
@@ -95,6 +160,89 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  // Login Screen
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="card max-w-md w-full"
+        >
+          <div className="text-center mb-8">
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+              className="text-6xl mb-4"
+            >
+              👑
+            </motion.div>
+            <h1 className="text-3xl font-game font-bold text-chaos-400 mb-2">
+              ADMIN ACCESS
+            </h1>
+            <p className="text-gray-400">
+              Enter the sacred password to command the kingdom
+            </p>
+          </div>
+          
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label htmlFor="admin-password" className="block text-sm font-medium text-gray-300 mb-2">
+                Admin Password
+              </label>
+              <input
+                type="password"
+                id="admin-password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setLoginError(''); // Clear error when typing
+                }}
+                className="input-field w-full"
+                placeholder="Enter admin password..."
+                required
+                autoComplete="current-password"
+              />
+            </div>
+
+            {loginError && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-red-500/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg text-sm"
+              >
+                🚫 {loginError}
+              </motion.div>
+            )}
+            
+            <button
+              type="submit"
+              disabled={isLoggingIn || !password.trim()}
+              className="btn-chaos w-full disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoggingIn ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Authenticating...
+                </span>
+              ) : (
+                '⚔️ Enter the Throne Room'
+              )}
+            </button>
+          </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-xs text-gray-500">
+              🔒 Unauthorized access is forbidden
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
@@ -117,9 +265,19 @@ const AdminPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h1 className="text-4xl md:text-6xl font-game font-bold text-transparent bg-clip-text bg-gradient-to-r from-chaos-400 to-primary-400 mb-4">
-            ADMIN DASHBOARD
-          </h1>
+          <div className="flex justify-between items-center mb-4">
+            <div></div> {/* Spacer */}
+            <h1 className="text-4xl md:text-6xl font-game font-bold text-transparent bg-clip-text bg-gradient-to-r from-chaos-400 to-primary-400">
+              ADMIN DASHBOARD
+            </h1>
+            <button
+              onClick={handleLogout}
+              className="btn-secondary text-sm px-4 py-2"
+              title="Logout"
+            >
+              🚪 Logout
+            </button>
+          </div>
           <p className="text-gray-300 text-lg">
             Command the Kingdom • Monitor the Chaos
           </p>
