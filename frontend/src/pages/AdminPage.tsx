@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { participantsApi, questionsApi, adminApi } from '../services/api';
+import { participantsApi, questionsApi, adminApi, votingApi } from '../services/api';
 import { socketService } from '../services/socket';
 import { Participant, Question } from '../types';
 
@@ -14,6 +14,7 @@ const AdminPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [activeVotingSession, setActiveVotingSession] = useState<any>(null);
 
   useEffect(() => {
     // Check if user is already authenticated on component mount
@@ -55,12 +56,27 @@ const AdminPage: React.FC = () => {
         setTimeout(() => setNotification(null), 4000);
         loadInitialData();
       });
+
+      // Voting session listeners
+      socketService.onVotingSessionStarted((data) => {
+        setNotification(`🗳️ Tie-breaker voting started for ${data.tiedParticipants.length} participants!`);
+        setTimeout(() => setNotification(null), 5000);
+        loadVotingData();
+      });
+
+      socketService.onVotingSessionEnded((data) => {
+        setNotification(`🗳️ Voting ended! ${data.results.eliminatedParticipant?.name || 'Someone'} was eliminated.`);
+        setTimeout(() => setNotification(null), 5000);
+        loadVotingData();
+        loadInitialData(); // Refresh leaderboard
+      });
       
       return () => {
         socketService.removeAllListeners();
         socketService.disconnect();
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -109,10 +125,22 @@ const AdminPage: React.FC = () => {
       
       setParticipants(participantsData);
       setQuestions(questionsData);
+      
+      // Also load voting data
+      await loadVotingData();
     } catch (error) {
       console.error('Error loading initial data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadVotingData = async () => {
+    try {
+      const activeSession = await votingApi.getActiveVotingSession();
+      setActiveVotingSession(activeSession.votingSession);
+    } catch (error) {
+      console.error('Error loading voting data:', error);
     }
   };
 
@@ -173,6 +201,61 @@ const AdminPage: React.FC = () => {
       }
     } catch (e) {
       setNotification('Error resetting questions');
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleDetectTie = async () => {
+    try {
+      const res = await votingApi.detectTie();
+      if (res.success) {
+        setNotification('Tie-breaker voting session created!');
+        setTimeout(() => setNotification(null), 3000);
+        await loadVotingData();
+      } else {
+        setNotification(res.message || 'No tie detected');
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (e) {
+      setNotification('Error detecting tie');
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleEndVoting = async (sessionId: string) => {
+    try {
+      const res = await votingApi.endVotingSession(sessionId);
+      if (res.success) {
+        setNotification('Voting session ended successfully!');
+        setTimeout(() => setNotification(null), 3000);
+        await loadVotingData();
+        await loadInitialData();
+      } else {
+        setNotification('Failed to end voting session');
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (e) {
+      setNotification('Error ending voting session');
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleCancelVoting = async (sessionId: string) => {
+    const confirmed = window.confirm('Are you sure you want to cancel the voting session?');
+    if (!confirmed) return;
+
+    try {
+      const res = await votingApi.cancelVotingSession(sessionId);
+      if (res.success) {
+        setNotification('Voting session cancelled');
+        setTimeout(() => setNotification(null), 3000);
+        await loadVotingData();
+      } else {
+        setNotification('Failed to cancel voting session');
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (e) {
+      setNotification('Error cancelling voting session');
       setTimeout(() => setNotification(null), 3000);
     }
   };
@@ -442,6 +525,13 @@ const AdminPage: React.FC = () => {
                 🔄 Reset Questions
               </button>
               <button
+                onClick={handleDetectTie}
+                className="btn-secondary border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white"
+                title="Check for ties and start voting if needed"
+              >
+                🗳️ Check for Ties
+              </button>
+              <button
                 onClick={handleDeleteAllUsers}
                 className="btn-secondary border-red-600 text-red-500 hover:bg-red-600 hover:text-white bg-red-900/20"
                 title="⚠️ DANGER: Permanently delete all users and their data"
@@ -461,6 +551,62 @@ const AdminPage: React.FC = () => {
           <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-chaos-600 text-white px-6 py-3 rounded-lg shadow-lg animate-bounce">
             {notification}
           </div>
+        )}
+
+        {/* Voting Management */}
+        {activeVotingSession && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="card mb-8 border-red-500/50 bg-red-500/10"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-game font-bold text-red-400">
+                🗳️ ACTIVE VOTING SESSION
+              </h2>
+              <div className="text-sm text-gray-400">
+                Squid Game Style Elimination
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-2">Session Details</h3>
+                <div className="space-y-2 text-sm">
+                  <p className="text-gray-300">
+                    <span className="text-red-400">Tied Score:</span> {activeVotingSession.tiedScore} points
+                  </p>
+                  <p className="text-gray-300">
+                    <span className="text-red-400">Participants:</span> {activeVotingSession.tiedParticipants.length}
+                  </p>
+                  <p className="text-gray-300">
+                    <span className="text-red-400">Status:</span> {activeVotingSession.status}
+                  </p>
+                  <p className="text-gray-300">
+                    <span className="text-red-400">Time Limit:</span> {activeVotingSession.votingTimeInSeconds}s
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex flex-col justify-center">
+                <div className="space-y-3">
+                  <button
+                    onClick={() => handleEndVoting(activeVotingSession.id)}
+                    className="btn-secondary border-yellow-500 text-yellow-400 hover:bg-yellow-500 hover:text-black w-full"
+                  >
+                    ⏰ End Voting Now
+                  </button>
+                  <button
+                    onClick={() => handleCancelVoting(activeVotingSession.id)}
+                    className="btn-secondary border-red-500 text-red-400 hover:bg-red-500 hover:text-white w-full"
+                  >
+                    ❌ Cancel Voting
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         )}
 
         {/* Leaderboard */}

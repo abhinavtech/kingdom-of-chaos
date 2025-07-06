@@ -68,4 +68,36 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async broadcastQuestionsReset() {
     this.server.emit('questionsReset', { message: 'All questions have been reset' });
   }
+
+  // Voting-related WebSocket methods
+  async broadcastVotingSessionStarted(votingSession: any, tiedParticipants: any[]) {
+    // Notify all tied participants about the voting session
+    tiedParticipants.forEach(participant => {
+      this.server.to(`participant_${participant.id}`).emit('votingSessionStarted', {
+        votingSession,
+        tiedParticipants,
+      });
+    });
+    
+    // Notify admin about the voting session
+    this.server.to('admin').emit('votingSessionStarted', {
+      votingSession,
+      tiedParticipants,
+    });
+  }
+
+  async broadcastVoteUpdate(votingSessionId: string) {
+    // Notify all participants about vote updates
+    this.server.emit('voteUpdate', { votingSessionId });
+  }
+
+  async broadcastVotingSessionEnded(sessionId: string, results: any) {
+    // Notify all participants about voting results
+    this.server.emit('votingSessionEnded', { sessionId, results });
+  }
+
+  async broadcastVotingSessionCancelled(sessionId: string) {
+    // Notify all participants that voting was cancelled
+    this.server.emit('votingSessionCancelled', { sessionId });
+  }
 } 

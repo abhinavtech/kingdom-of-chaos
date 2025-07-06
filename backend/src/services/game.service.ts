@@ -5,6 +5,7 @@ import { ParticipantAnswer } from '../entities/participant-answer.entity';
 import { SubmitAnswerDto } from '../dto/submit-answer.dto';
 import { ParticipantService } from './participant.service';
 import { QuestionService } from './question.service';
+import { VotingService } from './voting.service';
 import { GameGateway } from '../gateways/game.gateway';
 
 @Injectable()
@@ -14,6 +15,8 @@ export class GameService {
     private answerRepository: Repository<ParticipantAnswer>,
     private participantService: ParticipantService,
     private questionService: QuestionService,
+    @Inject(forwardRef(() => VotingService))
+    private votingService: VotingService,
     @Inject(forwardRef(() => GameGateway))
     private gameGateway: GameGateway,
   ) {}
@@ -78,6 +81,9 @@ export class GameService {
     // Notify via WebSocket
     await this.gameGateway.notifyAnswerSubmitted(participantId, result);
 
+    // Check if all questions are answered and detect ties
+    await this.checkGameCompletionAndTies();
+
     return result;
   }
 
@@ -87,5 +93,29 @@ export class GameService {
       relations: ['question'],
       order: { answeredAt: 'DESC' },
     });
+  }
+
+  private async checkGameCompletionAndTies(): Promise<void> {
+    try {
+      // Get all questions and all participants
+      const allQuestions = await this.questionService.findAll();
+      const allParticipants = await this.participantService.getLeaderboard();
+      
+      if (allQuestions.length === 0 || allParticipants.length === 0) {
+        return;
+      }
+
+      // Check if all participants have answered all questions
+      const totalAnswersNeeded = allQuestions.length * allParticipants.length;
+      const totalAnswersGiven = await this.answerRepository.count();
+      
+      if (totalAnswersGiven >= totalAnswersNeeded) {
+        // All questions answered, check for ties
+        console.log('All questions answered, checking for ties...');
+        await this.votingService.detectTieAndCreateVotingSession();
+      }
+    } catch (error) {
+      console.error('Error checking game completion and ties:', error);
+    }
   }
 } 

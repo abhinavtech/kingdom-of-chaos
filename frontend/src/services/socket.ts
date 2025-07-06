@@ -79,6 +79,40 @@ class SocketService {
       this.socket.on('questionsReset', callback);
     }
   }
+
+  // Voting methods
+  onVotingSessionStarted(callback: (data: any) => void): void {
+    if (this.socket) {
+      this.socket.on('votingSessionStarted', callback);
+    }
+  }
+
+  onVotingSessionEnded(callback: (data: any) => void): void {
+    if (this.socket) {
+      this.socket.on('votingSessionEnded', callback);
+    }
+  }
+
+  onVotingSessionCancelled(callback: (data: any) => void): void {
+    if (this.socket) {
+      this.socket.on('votingSessionCancelled', callback);
+    }
+  }
+
+  onVoteUpdate(callback: (data: any) => void): void {
+    if (this.socket) {
+      this.socket.on('voteUpdate', callback);
+    }
+  }
+
+  removeVotingListeners(): void {
+    if (this.socket) {
+      this.socket.off('votingSessionStarted');
+      this.socket.off('votingSessionEnded');
+      this.socket.off('votingSessionCancelled');
+      this.socket.off('voteUpdate');
+    }
+  }
 }
 
 export const socketService = new SocketService();

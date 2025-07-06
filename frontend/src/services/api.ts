@@ -96,6 +96,59 @@ export const gameApi = {
   },
 };
 
+// Voting API
+export const votingApi = {
+  detectTie: async () => {
+    const response = await api.post('/voting/detect-tie');
+    return response.data;
+  },
+
+  submitVote: async (data: {
+    votingSessionId: string;
+    voterParticipantId: string;
+    targetParticipantId: string;
+    password: string;
+  }) => {
+    const response = await api.post('/voting/submit', data);
+    return response.data;
+  },
+
+  getActiveVotingSession: async () => {
+    const response = await api.get('/voting/active');
+    return response.data;
+  },
+
+  getVotingSession: async (sessionId: string) => {
+    const response = await api.get(`/voting/session/${sessionId}`);
+    return response.data;
+  },
+
+  getVotingResults: async (sessionId: string) => {
+    const response = await api.get(`/voting/results/${sessionId}`);
+    return response.data;
+  },
+
+  endVotingSession: async (sessionId: string) => {
+    const response = await api.post(`/voting/end/${sessionId}`);
+    return response.data;
+  },
+
+  cancelVotingSession: async (sessionId: string) => {
+    const response = await api.post(`/voting/cancel/${sessionId}`);
+    return response.data;
+  },
+
+  getAllVotingSessions: async () => {
+    const response = await api.get('/voting/all');
+    return response.data;
+  },
+
+  getParticipant: async (participantId: string): Promise<Participant> => {
+    const response = await api.get(`/participants/${participantId}`);
+    return response.data;
+  },
+};
+
 // Admin API
 export const adminApi = {
   login: async (password: string): Promise<{ success: boolean; token?: string; message?: string }> => {

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { participantsApi, questionsApi, gameApi } from '../services/api';
 import { socketService } from '../services/socket';
 import { Participant, Question, SubmitAnswerResponse } from '../types';
+import VotingPage from './VotingPage';
 
 const ParticipantPage: React.FC = () => {
   const [participant, setParticipant] = useState<Participant | null>(null);
@@ -24,6 +25,7 @@ const ParticipantPage: React.FC = () => {
   const [hasNewQuestion, setHasNewQuestion] = useState(false);
   const [currentDisplayScore, setCurrentDisplayScore] = useState(0);
   const [submitTimeoutId, setSubmitTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  const [showVoting, setShowVoting] = useState(false);
 
   const currentQuestion = questions[currentQuestionIndex];
   const hasAnsweredCurrentQuestion = currentQuestion && answeredQuestions.has(currentQuestion.id);
@@ -79,10 +81,16 @@ const ParticipantPage: React.FC = () => {
       loadLeaderboard();
       setTimeout(() => setNotification(null), 4000);
     });
+    socketService.onVotingSessionStarted(() => {
+      setNotification('🗳️ Tie-breaker voting has started!');
+      setShowVoting(true);
+      setTimeout(() => setNotification(null), 4000);
+    });
     
     return () => {
       socketService.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const requestNotificationPermission = async () => {
@@ -204,6 +212,7 @@ const ParticipantPage: React.FC = () => {
       socketService.joinParticipant(participant.id);
       loadParticipantAnswers();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [participant]);
 
   useEffect(() => {
@@ -373,6 +382,21 @@ const ParticipantPage: React.FC = () => {
       default: return `#${index + 1}`;
     }
   };
+
+  // Show voting page if voting is active
+  if (showVoting && participant) {
+    return (
+      <VotingPage
+        participant={participant}
+        password={password}
+        onVotingComplete={() => {
+          setShowVoting(false);
+          setShowLeaderboard(true);
+          loadLeaderboard();
+        }}
+      />
+    );
+  }
 
   if (!participant) {
     return (
