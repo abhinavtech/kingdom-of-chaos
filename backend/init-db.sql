@@ -35,10 +35,38 @@ CREATE TABLE IF NOT EXISTS participant_answers (
     UNIQUE(participant_id, question_id)
 );
 
+-- Create polls table
+CREATE TABLE IF NOT EXISTS polls (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT false,
+    time_limit INTEGER DEFAULT 300,
+    poll_ends_at TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'completed', 'cancelled')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create poll_rankings table
+CREATE TABLE IF NOT EXISTS poll_rankings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    poll_id UUID REFERENCES polls(id) ON DELETE CASCADE,
+    ranker_participant_id UUID REFERENCES participants(id) ON DELETE CASCADE,
+    ranked_participant_id UUID REFERENCES participants(id) ON DELETE CASCADE,
+    rank INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(poll_id, ranker_participant_id, ranked_participant_id)
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_participants_score ON participants(score DESC);
 CREATE INDEX IF NOT EXISTS idx_participant_answers_participant_id ON participant_answers(participant_id);
 CREATE INDEX IF NOT EXISTS idx_participant_answers_question_id ON participant_answers(question_id);
+CREATE INDEX IF NOT EXISTS idx_polls_status ON polls(status);
+CREATE INDEX IF NOT EXISTS idx_poll_rankings_poll_id ON poll_rankings(poll_id);
+CREATE INDEX IF NOT EXISTS idx_poll_rankings_ranker_participant ON poll_rankings(ranker_participant_id);
+CREATE INDEX IF NOT EXISTS idx_poll_rankings_ranked_participant ON poll_rankings(ranked_participant_id);
 
 -- Insert sample questions
 INSERT INTO questions (question_text, options, correct_answer, points, is_active) VALUES

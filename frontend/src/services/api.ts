@@ -149,6 +149,103 @@ export const votingApi = {
   },
 };
 
+// Poll API
+export const pollApi = {
+  createPoll: async (data: {
+    title: string;
+    description?: string;
+    timeLimit?: number;
+  }) => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      throw new Error('No admin token found');
+    }
+
+    const response = await api.post('/poll/create', data, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  },
+
+  activatePoll: async (pollId: string) => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      throw new Error('No admin token found');
+    }
+
+    const response = await api.post(`/poll/activate/${pollId}`, {}, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  },
+
+  getActivePoll: async () => {
+    const response = await api.get('/poll/active');
+    return response.data;
+  },
+
+  getAllPolls: async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      throw new Error('No admin token found');
+    }
+
+    const response = await api.get('/poll/all', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  },
+
+  submitRankings: async (data: {
+    pollId: string;
+    rankerParticipantId: string;
+    password: string;
+    rankings: { participantId: string; rank: number }[];
+  }) => {
+    const response = await api.post('/poll/submit-rankings', data);
+    return response.data;
+  },
+
+  getPollResults: async (pollId: string) => {
+    const response = await api.get(`/poll/results/${pollId}`);
+    return response.data;
+  },
+
+  endPoll: async (pollId: string) => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      throw new Error('No admin token found');
+    }
+
+    const response = await api.post(`/poll/end/${pollId}`, {}, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  },
+
+  deletePoll: async (pollId: string) => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      throw new Error('No admin token found');
+    }
+
+    const response = await api.post(`/poll/delete/${pollId}`, {}, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  },
+};
+
 // Admin API
 export const adminApi = {
   login: async (password: string): Promise<{ success: boolean; token?: string; message?: string }> => {

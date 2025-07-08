@@ -21,6 +21,8 @@ export class VotingService {
     private gameGateway: GameGateway,
   ) {}
 
+  private votingTimeouts = new Map<string, NodeJS.Timeout>();
+
   async detectTieAndCreateVotingSession(): Promise<VotingSession | null> {
     const leaderboard = await this.participantService.getLeaderboard();
     
@@ -28,26 +30,30 @@ export class VotingService {
       return null; // No tie possible with less than 2 participants
     }
 
-    // Find the highest score
+    // Find the highest score among active participants
     const highestScore = leaderboard[0].score;
     
     // Find all participants with the highest score
-    const tiedParticipants = leaderboard.filter(p => p.score === highestScore);
+    const tiedParticipants = leaderboard.filter(p => p.score === highestScore && p.score > 0);
     
     if (tiedParticipants.length < 2) {
       return null; // No tie
     }
 
-    // Check if there's already an active voting session for this tie
+    // Check if there's already an active voting session
     const existingSession = await this.votingSessionRepository.findOne({
       where: { 
         status: 'active',
-        tiedScore: highestScore,
       }
     });
 
     if (existingSession) {
-      return existingSession; // Return existing session
+      // Cancel existing session if it's for a different tie
+      if (existingSession.tiedScore !== highestScore) {
+        await this.cancelVotingSession(existingSession.id);
+      } else {
+        return existingSession; // Return existing session for same tie
+      }
     }
 
     // Create new voting session
@@ -65,9 +71,12 @@ export class VotingService {
     await this.gameGateway.broadcastVotingSessionStarted(savedSession, tiedParticipants);
     
     // Set a timeout to automatically end the voting session
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       this.endVotingSession(savedSession.id);
     }, 60 * 1000);
+    
+    // Store timeout reference to allow cancellation
+    this.votingTimeouts.set(savedSession.id, timeout);
 
     return savedSession;
   }
@@ -104,6 +113,11 @@ export class VotingService {
     // Check if target is one of the tied participants
     if (!votingSession.tiedParticipants.includes(targetParticipantId)) {
       return { success: false, message: 'Invalid vote target' };
+    }
+
+    // Check if voter is trying to vote for themselves
+    if (voterParticipantId === targetParticipantId) {
+      return { success: false, message: 'You cannot vote for yourself' };
     }
 
     // Check if voter has already voted
@@ -163,29 +177,49 @@ export class VotingService {
       throw new Error('Voting session not found');
     }
 
-    // Count votes for each participant
+    // Initialize vote count for all tied participants
     const voteCount: { [participantId: string]: number } = {};
     votingSession.tiedParticipants.forEach(participantId => {
       voteCount[participantId] = 0;
     });
 
-    votingSession.votes.forEach(vote => {
-      voteCount[vote.targetParticipantId] = (voteCount[vote.targetParticipantId] || 0) + 1;
-    });
+    // Count votes - ensure votes are loaded
+    if (votingSession.votes && votingSession.votes.length > 0) {
+      votingSession.votes.forEach(vote => {
+        if (vote.targetParticipantId in voteCount) {
+          voteCount[vote.targetParticipantId]++;
+        }
+      });
+    }
 
-    const totalVotes = votingSession.votes.length;
+    const totalVotes = votingSession.votes?.length || 0;
 
-    // Find participant with most votes (to be eliminated)
+    // Find participant(s) with most votes
     let eliminatedParticipant: Participant | null = null;
     let maxVotes = 0;
+    const tiedForElimination: string[] = [];
     
     for (const participantId in voteCount) {
       if (voteCount[participantId] > maxVotes) {
         maxVotes = voteCount[participantId];
-        eliminatedParticipant = await this.participantRepository.findOne({
-          where: { id: participantId }
-        });
+        tiedForElimination.length = 0;
+        tiedForElimination.push(participantId);
+      } else if (voteCount[participantId] === maxVotes && maxVotes > 0) {
+        tiedForElimination.push(participantId);
       }
+    }
+
+    // If there's a clear winner (loser), eliminate them
+    if (tiedForElimination.length === 1 && maxVotes > 0) {
+      eliminatedParticipant = await this.participantRepository.findOne({
+        where: { id: tiedForElimination[0] }
+      });
+    } else if (tiedForElimination.length > 1) {
+      // In case of tie in elimination votes, randomly select one
+      const randomIndex = Math.floor(Math.random() * tiedForElimination.length);
+      eliminatedParticipant = await this.participantRepository.findOne({
+        where: { id: tiedForElimination[randomIndex] }
+      });
     }
 
     return {
@@ -197,31 +231,46 @@ export class VotingService {
   }
 
   async endVotingSession(sessionId: string): Promise<void> {
+    // Clear any existing timeout
+    const timeout = this.votingTimeouts.get(sessionId);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.votingTimeouts.delete(sessionId);
+    }
+
     const votingSession = await this.votingSessionRepository.findOne({
-      where: { id: sessionId, status: 'active' },
+      where: { id: sessionId },
+      relations: ['votes'],
     });
 
-    if (!votingSession) {
+    if (!votingSession || votingSession.status !== 'active') {
       return; // Session not found or already ended
     }
 
-    const results = await this.getVotingResults(sessionId);
-    
-    // Update voting session status
-    votingSession.status = 'completed';
-    votingSession.eliminatedParticipantId = results.eliminatedParticipant?.id || null;
-    await this.votingSessionRepository.save(votingSession);
+    try {
+      const results = await this.getVotingResults(sessionId);
+      
+      // Update voting session status
+      votingSession.status = 'completed';
+      votingSession.eliminatedParticipantId = results.eliminatedParticipant?.id || null;
+      await this.votingSessionRepository.save(votingSession);
 
-    // If someone was eliminated, reduce their score to ensure they're no longer tied
-    if (results.eliminatedParticipant) {
-      await this.participantRepository.update(
-        { id: results.eliminatedParticipant.id },
-        { score: results.eliminatedParticipant.score - 1 }
-      );
+      // If someone was eliminated, reduce their score to ensure they're no longer tied
+      if (results.eliminatedParticipant) {
+        await this.participantRepository.update(
+          { id: results.eliminatedParticipant.id },
+          { score: Math.max(0, results.eliminatedParticipant.score - 1) }
+        );
+      }
+
+      // Broadcast voting results
+      await this.gameGateway.broadcastVotingSessionEnded(sessionId, results);
+    } catch (error) {
+      console.error('Error ending voting session:', error);
+      // Still mark session as completed to prevent hanging
+      votingSession.status = 'completed';
+      await this.votingSessionRepository.save(votingSession);
     }
-
-    // Broadcast voting results
-    await this.gameGateway.broadcastVotingSessionEnded(sessionId, results);
   }
 
   async getAllVotingSessions(): Promise<VotingSession[]> {
@@ -232,6 +281,13 @@ export class VotingService {
   }
 
   async cancelVotingSession(sessionId: string): Promise<void> {
+    // Clear any existing timeout
+    const timeout = this.votingTimeouts.get(sessionId);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.votingTimeouts.delete(sessionId);
+    }
+
     await this.votingSessionRepository.update(
       { id: sessionId },
       { status: 'cancelled' }

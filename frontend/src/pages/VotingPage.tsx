@@ -78,11 +78,18 @@ const VotingPage: React.FC<VotingPageProps> = ({ participant, password, onVoting
 
   const loadTiedParticipants = async (participantIds: string[]) => {
     try {
-      // This would need to be implemented in the API
       const participants = await Promise.all(
-        participantIds.map(id => votingApi.getParticipant(id))
+        participantIds.map(async (id) => {
+          try {
+            const response = await votingApi.getParticipant(id);
+            return response;
+          } catch (error) {
+            console.error(`Error loading participant ${id}:`, error);
+            return null;
+          }
+        })
       );
-      setTiedParticipants(participants.filter(p => p));
+      setTiedParticipants(participants.filter(p => p !== null) as Participant[]);
     } catch (error) {
       console.error('Error loading tied participants:', error);
     }

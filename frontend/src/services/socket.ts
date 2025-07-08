@@ -113,6 +113,33 @@ class SocketService {
       this.socket.off('voteUpdate');
     }
   }
+
+  // Poll methods
+  onPollActivated(callback: (poll: any) => void): void {
+    if (this.socket) {
+      this.socket.on('pollActivated', callback);
+    }
+  }
+
+  onPollRankingUpdate(callback: (data: any) => void): void {
+    if (this.socket) {
+      this.socket.on('pollRankingUpdate', callback);
+    }
+  }
+
+  onPollEnded(callback: (data: any) => void): void {
+    if (this.socket) {
+      this.socket.on('pollEnded', callback);
+    }
+  }
+
+  removePollListeners(): void {
+    if (this.socket) {
+      this.socket.off('pollActivated');
+      this.socket.off('pollRankingUpdate');
+      this.socket.off('pollEnded');
+    }
+  }
 }
 
 export const socketService = new SocketService();

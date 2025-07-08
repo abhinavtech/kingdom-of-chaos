@@ -100,4 +100,20 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Notify all participants that voting was cancelled
     this.server.emit('votingSessionCancelled', { sessionId });
   }
+
+  // Poll-related WebSocket methods
+  async broadcastPollActivated(poll: any) {
+    // Notify all participants about the new poll
+    this.server.emit('pollActivated', poll);
+  }
+
+  async broadcastPollRankingUpdate(pollId: string) {
+    // Notify all participants about ranking updates
+    this.server.emit('pollRankingUpdate', { pollId });
+  }
+
+  async broadcastPollEnded(pollId: string, results: any) {
+    // Notify all participants about poll results
+    this.server.emit('pollEnded', { pollId, results });
+  }
 } 

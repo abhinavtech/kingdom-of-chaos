@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { participantsApi, questionsApi, adminApi, votingApi } from '../services/api';
+import { participantsApi, questionsApi, adminApi, votingApi, pollApi } from '../services/api';
 import { socketService } from '../services/socket';
-import { Participant, Question } from '../types';
+import { Participant, Question, Poll } from '../types';
 
 const AdminPage: React.FC = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -15,6 +15,12 @@ const AdminPage: React.FC = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [activeVotingSession, setActiveVotingSession] = useState<any>(null);
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const [activePoll, setActivePoll] = useState<Poll | null>(null);
+  const [showCreatePoll, setShowCreatePoll] = useState(false);
+  const [newPollTitle, setNewPollTitle] = useState('');
+  const [newPollDescription, setNewPollDescription] = useState('');
+  const [newPollTimeLimit, setNewPollTimeLimit] = useState(300); // 5 minutes default
 
   useEffect(() => {
     // Check if user is already authenticated on component mount
@@ -68,6 +74,20 @@ const AdminPage: React.FC = () => {
         setNotification(`🗳️ Voting ended! ${data.results.eliminatedParticipant?.name || 'Someone'} was eliminated.`);
         setTimeout(() => setNotification(null), 5000);
         loadVotingData();
+        loadInitialData(); // Refresh leaderboard
+      });
+
+      // Poll listeners
+      socketService.onPollActivated((poll) => {
+        setNotification(`📊 Poll activated: ${poll.title}`);
+        setTimeout(() => setNotification(null), 4000);
+        loadPollData();
+      });
+
+      socketService.onPollEnded((data) => {
+        setNotification(`📊 Poll ended: ${data.results.poll.title}`);
+        setTimeout(() => setNotification(null), 4000);
+        loadPollData();
         loadInitialData(); // Refresh leaderboard
       });
       
@@ -126,8 +146,9 @@ const AdminPage: React.FC = () => {
       setParticipants(participantsData);
       setQuestions(questionsData);
       
-      // Also load voting data
+      // Also load voting data and poll data
       await loadVotingData();
+      await loadPollData();
     } catch (error) {
       console.error('Error loading initial data:', error);
     } finally {
@@ -141,6 +162,19 @@ const AdminPage: React.FC = () => {
       setActiveVotingSession(activeSession.votingSession);
     } catch (error) {
       console.error('Error loading voting data:', error);
+    }
+  };
+
+  const loadPollData = async () => {
+    try {
+      const [allPolls, activePolls] = await Promise.all([
+        pollApi.getAllPolls(),
+        pollApi.getActivePoll(),
+      ]);
+      setPolls(allPolls.polls || []);
+      setActivePoll(activePolls.poll || null);
+    } catch (error) {
+      console.error('Error loading poll data:', error);
     }
   };
 
@@ -303,6 +337,97 @@ const AdminPage: React.FC = () => {
       console.error('Error deleting all users:', error);
       setNotification('Error deleting users: ' + (error.response?.data?.message || error.message));
       setTimeout(() => setNotification(null), 4000);
+    }
+  };
+
+  // Poll management functions
+  const handleCreatePoll = async () => {
+    if (!newPollTitle.trim()) {
+      setNotification('Poll title is required');
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+
+    try {
+      const result = await pollApi.createPoll({
+        title: newPollTitle,
+        description: newPollDescription || undefined,
+        timeLimit: newPollTimeLimit,
+      });
+
+      if (result.success) {
+        setNotification('Poll created successfully!');
+        setTimeout(() => setNotification(null), 3000);
+        setShowCreatePoll(false);
+        setNewPollTitle('');
+        setNewPollDescription('');
+        setNewPollTimeLimit(300);
+        await loadPollData();
+      } else {
+        setNotification('Failed to create poll');
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (error) {
+      setNotification('Error creating poll');
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleActivatePoll = async (pollId: string) => {
+    try {
+      const result = await pollApi.activatePoll(pollId);
+      if (result.success) {
+        setNotification('Poll activated successfully!');
+        setTimeout(() => setNotification(null), 3000);
+        await loadPollData();
+      } else {
+        setNotification('Failed to activate poll');
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (error) {
+      setNotification('Error activating poll');
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleEndPoll = async (pollId: string) => {
+    const confirmed = window.confirm('Are you sure you want to end this poll?');
+    if (!confirmed) return;
+
+    try {
+      const result = await pollApi.endPoll(pollId);
+      if (result.success) {
+        setNotification('Poll ended successfully!');
+        setTimeout(() => setNotification(null), 3000);
+        await loadPollData();
+        await loadInitialData(); // Refresh leaderboard
+      } else {
+        setNotification('Failed to end poll');
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (error) {
+      setNotification('Error ending poll');
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleDeletePoll = async (pollId: string) => {
+    const confirmed = window.confirm('Are you sure you want to delete this poll? This action cannot be undone.');
+    if (!confirmed) return;
+
+    try {
+      const result = await pollApi.deletePoll(pollId);
+      if (result.success) {
+        setNotification('Poll deleted successfully!');
+        setTimeout(() => setNotification(null), 3000);
+        await loadPollData();
+      } else {
+        setNotification('Failed to delete poll');
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (error) {
+      setNotification('Error deleting poll');
+      setTimeout(() => setNotification(null), 3000);
     }
   };
 
@@ -608,6 +733,196 @@ const AdminPage: React.FC = () => {
             </div>
           </motion.div>
         )}
+
+        {/* Poll Management */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="card mb-8"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-game font-bold text-white">
+              📊 POLL MANAGEMENT
+            </h2>
+            <button
+              onClick={() => setShowCreatePoll(!showCreatePoll)}
+              className="btn-chaos"
+            >
+              {showCreatePoll ? '❌ Cancel' : '📊 Create New Poll'}
+            </button>
+          </div>
+
+          {/* Active Poll Display */}
+          {activePoll && (
+            <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/50 rounded-lg">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-blue-400">
+                  🔥 ACTIVE POLL
+                </h3>
+                <span className="text-sm text-gray-400">
+                  {activePoll.timeLimit}s limit
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold text-white mb-2">{activePoll.title}</h4>
+                  {activePoll.description && (
+                    <p className="text-sm text-gray-300 mb-2">{activePoll.description}</p>
+                  )}
+                  <div className="text-sm text-gray-400">
+                    Status: <span className="text-blue-400">{activePoll.status}</span>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col justify-center">
+                  <button
+                    onClick={() => handleEndPoll(activePoll.id)}
+                    className="btn-secondary border-yellow-500 text-yellow-400 hover:bg-yellow-500 hover:text-black w-full"
+                  >
+                    ⏰ End Poll Now
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Create Poll Form */}
+          {showCreatePoll && (
+            <div className="mb-6 p-4 bg-gray-800/50 border border-gray-600 rounded-lg">
+              <h3 className="text-lg font-bold text-white mb-4">Create New Poll</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Poll Title*
+                  </label>
+                  <input
+                    type="text"
+                    value={newPollTitle}
+                    onChange={(e) => setNewPollTitle(e.target.value)}
+                    className="input-field w-full"
+                    placeholder="Enter poll title..."
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    value={newPollDescription}
+                    onChange={(e) => setNewPollDescription(e.target.value)}
+                    className="input-field w-full"
+                    placeholder="Enter poll description..."
+                    rows={3}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Time Limit (seconds)
+                  </label>
+                  <input
+                    type="number"
+                    value={newPollTimeLimit}
+                    onChange={(e) => setNewPollTimeLimit(Number(e.target.value))}
+                    className="input-field w-full"
+                    min={60}
+                    max={3600}
+                  />
+                </div>
+                
+                <div className="flex gap-4">
+                  <button
+                    onClick={handleCreatePoll}
+                    className="btn-chaos"
+                  >
+                    📊 Create Poll
+                  </button>
+                  <button
+                    onClick={() => setShowCreatePoll(false)}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Polls List */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-white">All Polls</h3>
+            
+            {polls.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-4xl mb-4">📊</div>
+                <p className="text-gray-400">No polls created yet</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {polls.map((poll) => (
+                  <div
+                    key={poll.id}
+                    className={`p-4 rounded-lg border-2 ${
+                      poll.isActive 
+                        ? 'border-blue-500 bg-blue-500/10' 
+                        : 'border-gray-600 bg-gray-700/50'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold text-white">{poll.title}</h4>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        poll.status === 'active' ? 'bg-green-500 text-white' :
+                        poll.status === 'completed' ? 'bg-gray-500 text-white' :
+                        poll.status === 'pending' ? 'bg-yellow-500 text-black' :
+                        'bg-red-500 text-white'
+                      }`}>
+                        {poll.status}
+                      </span>
+                    </div>
+                    
+                    {poll.description && (
+                      <p className="text-sm text-gray-300 mb-2">{poll.description}</p>
+                    )}
+                    
+                    <div className="text-xs text-gray-400 mb-3">
+                      Time Limit: {poll.timeLimit}s
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      {poll.status === 'pending' && (
+                        <button
+                          onClick={() => handleActivatePoll(poll.id)}
+                          className="btn-primary text-xs px-3 py-1"
+                        >
+                          🚀 Activate
+                        </button>
+                      )}
+                      {poll.status === 'active' && (
+                        <button
+                          onClick={() => handleEndPoll(poll.id)}
+                          className="btn-secondary border-yellow-500 text-yellow-400 text-xs px-3 py-1"
+                        >
+                          ⏰ End
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeletePoll(poll.id)}
+                        className="btn-secondary border-red-500 text-red-400 text-xs px-3 py-1"
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </motion.div>
 
         {/* Leaderboard */}
         <motion.div
